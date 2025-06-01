@@ -19,7 +19,7 @@ AP # or View(AP)
 # print the type of object 
 cat("Time of object:", class(AP))
 
-# plot the initial time serie
+# Plot the initial time serie
 #     using plot()
 plot(AP, main = "PanAm Air Passangers 1949-1960", ylab = "Passengers (1000's)")
 
@@ -32,5 +32,37 @@ df_AP <- data.frame(
 # generate plot
 ggplot(data = df_AP, mapping = aes(x = time, y = passangers)) +
   geom_line(color = "slateblue") +
-  labs(tittle = "PanAm Air Passangers 1949-1960", x = "Time", y = "Passengers (1000's)") + 
+  labs(title = "PanAm Air Passangers 1949-1960", x = "Time", y = "Passengers (1000's)") + 
+  theme_minimal()
+
+# Understand better how the data behaves with cyvles boxplot and aggregated
+#     using plot()
+layout(1:2) # omit using layout() when coding in a markdown notebook
+plot(aggregate(AP), main = "Aggregated PanAm Air Passangers 1949-1960", ylab = "Passangers (1000's)")
+boxplot(AP ~ cycle(AP), main ="Boxplot of seasonal values", xlab = "Month")
+
+#   using ggplot2()
+# first organize data for aggreggate
+agg_AP <- aggregate(AP, FUN = mean)
+df_agg_AP <- data.frame(
+  time = as.numeric(time(agg_AP)),
+  agg_passangers = as.numeric(agg_AP)
+)
+
+# organize data for the box plot
+df_cyclebox_AP <- data.frame(
+  cycle = cycle(AP),
+  passangers = as.numeric(AP)
+)
+
+# generate plot
+layout(1:2) # omit using layout() when coding in a markdown notebook
+ggplot(data = df_agg_AP, mapping = aes(x = time, y = agg_passangers)) +
+  geom_line(color = "slateblue") +
+  labs(title = "Aggregated PanAm Air Passangers 1949-1960", x = "Time", y = "Passangers (1000's)")+
+  theme_minimal()
+
+ggplot(data = df_cyclebox_AP, mapping = aes(x = factor(cycle), y = passangers)) + # use factor to identufy as a cetgory
+  geom_boxplot(fill = "slateblue1") +
+  labs(title = "Boxplot of Seasonal Passangers", x = "Time", y = "Passangers (1000's)") +
   theme_minimal()
