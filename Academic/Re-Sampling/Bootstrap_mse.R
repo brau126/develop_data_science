@@ -57,7 +57,7 @@ ggplot(mse_resultados) +
 
 ########## Graficas MSE deafult plot ##########
 # Graficar densidad del MSE
-x11()
+# x11() # comamndo para graficar en nueva terminal
 plot(density(mse_values_bootstrap), col = "steelblue")
   abline(v = var_empirico, col = "orange")
   abline(v = mse_estimate, col = "darkgreen")
@@ -67,8 +67,3 @@ plot(density(mse_values_bootstrap), col = "steelblue")
          legend = c("Simulacion Bootstrap","VaR Empirico","MSE Estimado","IC del MSE"),
          col = c("steelblue","orange","darkgreen","seagreen"),
          lty = c(1,1,1,2))
-
-
-
-
-
