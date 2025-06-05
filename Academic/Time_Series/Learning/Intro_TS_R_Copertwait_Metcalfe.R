@@ -89,3 +89,22 @@ ts_maine_annual <- aggregate(ts_maine_month)/12
 layout(1:2) # omit using layout() when coding in a markdown notebook
 plot(ts_maine_month, main = "Unmenployment Maine", ylab = "Unmenployment (%)")
 plot(ts_maine_annual,  main = "Unmenployment Maine Annual Average", ylab = "Unmenployment (%)")
+
+#   using ggplot2()
+# organize original data to add time
+df_maine_month$time <- as.numeric(time(ts_maine_month)) # note: if working with a R markdown do not use pipe %>%
+df_maine_annual <- data.frame(
+  time = as.numeric(time(ts_maine_annual)),
+  unemploy_annual_avg = as.numeric(ts_maine_annual)
+)
+
+# generate plot
+ggplot(df_maine_month, mapping = aes(x = time, y = unemploy)) +
+  geom_line(color = "orange") +
+  labs(title = "Unemployment Maine", y = "Unemployed (%)") +
+  theme_minimal()
+
+ggplot(df_maine_annual, mapping = aes(x = time, y = unemploy_annual_avg)) +
+  geom_line(color = "orange") +
+  labs(title = "Unemployment Maine Annual Average", y = "Unemployed (%)") +
+  theme_minimal()
