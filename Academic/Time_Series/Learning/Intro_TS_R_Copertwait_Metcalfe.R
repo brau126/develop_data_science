@@ -76,3 +76,16 @@ maine_path <- "https://raw.githubusercontent.com/prabeshdhakal/Introductory-Time
 df_maine_month <- read.table(maine_path, header = TRUE)
 attach(df_maine_month) # in orther to make columns accesibles by itself, no need to use maine_month as prefix
 cat("The data is stored as a:", class(df_maine_month))
+
+# data si changed from data.frame to ts
+ts_maine_month <- ts(df_maine_month$unemploy, start = c(1991, 1), frequency = 12)
+cat("The data is stored as a:", class(ts_maine_month))
+
+#     using plot()
+# organize data as an aggregated 12 month average
+ts_maine_annual <- aggregate(ts_maine_month)/12
+
+# generaate both plots
+layout(1:2) # omit using layout() when coding in a markdown notebook
+plot(ts_maine_month, main = "Unmenployment Maine", ylab = "Unmenployment (%)")
+plot(ts_maine_annual,  main = "Unmenployment Maine Annual Average", ylab = "Unmenployment (%)")
