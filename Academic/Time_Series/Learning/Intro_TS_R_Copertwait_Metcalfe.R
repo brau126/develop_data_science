@@ -6,6 +6,8 @@
 ########## Libraries ##########
 # Plots
 library(ggplot2)
+# Data transform
+library(dplyr)
 
 #          1 Time Series Data
 ########## 1.4.1 Air Passanger bookings ##########
@@ -69,21 +71,8 @@ ggplot(data = df_cyclebox_AP, mapping = aes(x = factor(cycle), y = passangers)) 
 
 ########## 1.4.2 Unemployment Maine ##########
 # import data set
-# www <- "http://www.massey.ac.nz/~pscowper/ts/Maine.dat" # no longer works
-www <- "https://raw.githubusercontent.com/prabeshdhakal/Introductory-Time-Series-with-R-Datasets/refs/heads/master/Maine.dat"
-Maine.month <- read.table(www, header = TRUE)
-attach(Maine.month) # in orther to make columns accesibles by itself, no need to use Maine.month as prefix
-class(Maine.month)
-
-
-
-
-
-
-
-
-
-
-
-
-
+# maine_path <- "http://www.massey.ac.nz/~pscowper/ts/Maine.dat" # no longer works
+maine_path <- "https://raw.githubusercontent.com/prabeshdhakal/Introductory-Time-Series-with-R-Datasets/refs/heads/master/Maine.dat"
+df_maine_month <- read.table(maine_path, header = TRUE)
+attach(df_maine_month) # in orther to make columns accesibles by itself, no need to use maine_month as prefix
+cat("The data is stored as a:", class(df_maine_month))
