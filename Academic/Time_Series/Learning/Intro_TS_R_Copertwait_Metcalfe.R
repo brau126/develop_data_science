@@ -66,3 +66,24 @@ ggplot(data = df_cyclebox_AP, mapping = aes(x = factor(cycle), y = passangers)) 
   geom_boxplot(fill = "slateblue1") +
   labs(title = "Boxplot of Seasonal Passangers", x = "Time", y = "Passangers (1000's)") +
   theme_minimal()
+
+########## 1.4.2 Unemployment Maine ##########
+# import data set
+# www <- "http://www.massey.ac.nz/~pscowper/ts/Maine.dat" # no longer works
+www <- "https://raw.githubusercontent.com/prabeshdhakal/Introductory-Time-Series-with-R-Datasets/refs/heads/master/Maine.dat"
+Maine.month <- read.table(www, header = TRUE)
+attach(Maine.month) # in orther to make columns accesibles by itself, no need to use Maine.month as prefix
+class(Maine.month)
+
+
+
+
+
+
+
+
+
+
+
+
+
