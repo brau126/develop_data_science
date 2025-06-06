@@ -23,7 +23,7 @@ cat("Time of object:", class(AP))
 
 # Plot the initial time serie
 #     using plot()
-plot(AP, main = "PanAm Air Passangers 1949-1960", ylab = "Passengers (1000's)")
+plot(AP, main = "PanAm Air Passangers 1949-1960", ylab = "Passengers (1000's)", col = "slateblue")
 
 #     using ggplot2()
 # first transform the object to a data frame
@@ -40,8 +40,8 @@ ggplot(data = df_AP, mapping = aes(x = time, y = passangers)) +
 # Understand better how the data behaves with cyvles boxplot and aggregated
 #     using plot()
 layout(1:2) # omit using layout() when coding in a markdown notebook
-plot(aggregate(AP), main = "Aggregated PanAm Air Passangers 1949-1960", ylab = "Passangers (1000's)")
-boxplot(AP ~ cycle(AP), main ="Boxplot of seasonal values", xlab = "Month")
+plot(aggregate(AP), main = "Aggregated PanAm Air Passangers 1949-1960", ylab = "Passangers (1000's)", col = "slateblue")
+boxplot(AP ~ cycle(AP), main ="Boxplot of seasonal values", xlab = "Month", ylab = "Passangers (1000's)", col = "slateblue1")
 
 #   using ggplot2()
 # first organize data for aggreggate
@@ -87,8 +87,8 @@ ts_maine_annual <- aggregate(ts_maine_month)/12
 
 # generaate both plots
 layout(1:2) # omit using layout() when coding in a markdown notebook
-plot(ts_maine_month, main = "Unmenployment Maine", ylab = "Unmenployment (%)")
-plot(ts_maine_annual,  main = "Unmenployment Maine Annual Average", ylab = "Unmenployment (%)")
+plot(ts_maine_month, main = "Unemployment Maine", ylab = "Unemployed (%)", col = "sienna")
+plot(ts_maine_annual,  main = "Unemployment Maine Annual Average", ylab = "Unemployed (%)", col = "sienna")
 
 #   using ggplot2()
 # organize original data to add time
@@ -100,12 +100,12 @@ df_maine_annual <- data.frame(
 
 # generate plot
 ggplot(df_maine_month, mapping = aes(x = time, y = unemploy)) +
-  geom_line(color = "orange") +
+  geom_line(color = "sienna") +
   labs(title = "Unemployment Maine", y = "Unemployed (%)") +
   theme_minimal()
 
 ggplot(df_maine_annual, mapping = aes(x = time, y = unemploy_annual_avg)) +
-  geom_line(color = "orange") +
+  geom_line(color = "sienna") +
   labs(title = "Unemployment Maine Annual Average", y = "Unemployed (%)") +
   theme_minimal()
 
@@ -133,4 +133,17 @@ ts_USA_month <- ts(df_USA_month, start = c(1996, 1), end = c(2006, 10), frequenc
 cat("Verify class object:", class(ts_USA_month))
 
 #   using plot()
-plot(ts_USA_month, main = "Monthly Unemployment USA 1996-2006", ylab = "Unemployed (%)")
+plot(ts_USA_month, main = "Monthly Unemployment USA 1996-2006", ylab = "Unemployed (%)", col = "sienna4")
+
+#   using ggplot2()
+# organizing ts as a data frame, add time column
+df_USA_month <- data.frame(
+  time = as.numeric(time(ts_USA_month)),
+  USA_unemp = as.numeric(ts_USA_month)
+)
+
+# generate plot
+ggplot(df_USA_month, mapping = aes(x = time, y = USA_unemp)) +
+  geom_line(color = "sienna4") +
+  labs(title = "Monthly Unemployment USA 1996-2006", y = "Unemployed (%)") +
+  theme_minimal()
