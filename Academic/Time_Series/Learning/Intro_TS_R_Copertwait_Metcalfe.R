@@ -108,3 +108,29 @@ ggplot(df_maine_annual, mapping = aes(x = time, y = unemploy_annual_avg)) +
   geom_line(color = "orange") +
   labs(title = "Unemployment Maine Annual Average", y = "Unemployed (%)") +
   theme_minimal()
+
+# window function to obtain the ts for a month
+ts_maine_feb <- window(ts_maine_month, start = c(1991, 2), frequency = TRUE)
+ts_maine_aug <- window(ts_maine_month, start = c(1991, 8), frequency = TRUE)
+
+# comparing to the specific months
+ts_maine_feb
+ts_maine_month
+
+# ratio from window functions
+feb_ratio <- mean(ts_maine_feb) / mean(ts_maine_month)
+aug_ratio <- mean(ts_maine_aug) / mean(ts_maine_month)
+
+# output results
+cat("The ratio for February compared to the mean is:", feb_ratio, ", and for August:", aug_ratio)
+
+# import the data
+#USAunemp_path <- "http://www.massey.ac.nz/~pscowper/ts/USunemp.dat"
+USAunemp_path <- "https://raw.githubusercontent.com/prabeshdhakal/Introductory-Time-Series-with-R-Datasets/refs/heads/master/USunemp.dat"
+df_USA_month <- read.table(USAunemp_path, header = TRUE)
+#attach(ts_USA_month)
+ts_USA_month <- ts(df_USA_month, start = c(1996, 1), end = c(2006, 10), frequency = 12)
+cat("Verify class object:", class(ts_USA_month))
+
+#   using plot()
+plot(ts_USA_month, main = "Monthly Unemployment USA 1996-2006", ylab = "Unemployed (%)")
