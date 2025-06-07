@@ -58,7 +58,7 @@ df_cyclebox_AP <- data.frame(
 )
 
 # generate plot
-layout(1:2) # omit using layout() when coding in a markdown notebook
+layout(1:2) # omit using layout() when coding in a markdown
 ggplot(data = df_agg_AP, mapping = aes(x = time, y = agg_passangers)) +
   geom_line(color = "slateblue") +
   labs(title = "Aggregated PanAm Air Passangers 1949-1960", x = "Time", y = "Passangers (1000's)")+
@@ -74,7 +74,7 @@ ggplot(data = df_cyclebox_AP, mapping = aes(x = factor(cycle), y = passangers)) 
 # maine_path <- "http://www.massey.ac.nz/~pscowper/ts/Maine.dat" # no longer works
 maine_path <- "https://raw.githubusercontent.com/prabeshdhakal/Introductory-Time-Series-with-R-Datasets/refs/heads/master/Maine.dat"
 df_maine_month <- read.table(maine_path, header = TRUE)
-attach(df_maine_month) # in orther to make columns accesibles by itself, no need to use maine_month as prefix
+attach(df_maine_month) # in order to make columns accesibles by itself, no need to use maine_month as prefix
 cat("The data is stored as a:", class(df_maine_month))
 
 # data si changed from data.frame to ts
