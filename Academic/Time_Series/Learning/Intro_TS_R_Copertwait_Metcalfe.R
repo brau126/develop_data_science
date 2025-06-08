@@ -147,3 +147,59 @@ ggplot(df_USA_month, mapping = aes(x = time, y = USA_unemp)) +
   geom_line(color = "sienna4") +
   labs(title = "Monthly Unemployment USA 1996-2006", y = "Unemployed (%)") +
   theme_minimal()
+
+########## 1.4.3 Multiple Time Series: Chocolate, Beer and Electricity ##########
+# CBE_path_www <- "http://www.massey.ac.nz/~pscowper/ts/Maine.dat"
+CBE_path <- "https://raw.githubusercontent.com/prabeshdhakal/Introductory-Time-Series-with-R-Datasets/refs/heads/master/cbe.dat"
+df_CBE_og <- read.table(CBE_path, header = TRUE)
+#attach(df_CBE) # in order to make columns accesibles by itself, no need to use prefix
+cat("The data is stored as a:", class(df_CBE_og))
+
+# show the first 4 lines of the data frame
+df_CBE_og[1:4,]
+
+# time series object created
+ts_cbe_choco <- ts(df_CBE_og$choc, start = 1958, frequency = 12)
+ts_cbe_beer <- ts(df_CBE_og$beer, start = 1958, frequency = 12)
+ts_cbe_elec <- ts(df_CBE_og$elec, start = 1958, frequency = 12)
+
+#     using plot() as the book
+plot(cbind(ts_cbe_choco, ts_cbe_beer, ts_cbe_elec), main = "Chocolate, Beer and Electricity Production 1958-1990", col = "springgreen4")
+
+#     using plot() new suggestion
+par(mfrow = c(3,1)) # 3 rows for the plots
+plot(ts_cbe_choco, main = "Chocolate, Beer and Electricity Production 1958-1990", ylab = "Chocolate Production", xlab = "", col = "springgreen4")
+plot(ts_cbe_beer, main = "", ylab = "Beer Production", xlab = "", col = "springgreen4")
+plot(ts_cbe_elec, main = "", ylab = "Electricity Production", col = "springgreen4")
+
+#     using ggplot() raw same plot
+# organize the data form time series in one single data frame
+df_CBE <- data.frame(
+  time = as.numeric(time(ts_cbe_choco)),
+  choco = as.numeric(ts_cbe_choco),
+  beer = as.numeric(ts_cbe_beer),
+  elec = as.numeric(ts_cbe_elec)
+)
+
+# generate ggplot
+ggplot(df_CBE, mapping = aes(x = time)) +
+  geom_line(mapping = aes(y = choco, color = "Chocolate")) +
+  geom_line(mapping = aes(y = beer, color = "Beer"), linetype = "longdash") +
+  geom_line(mapping = aes(y = elec, color = "Electricity"), linetype = "dotted") +
+  labs(title = "Chocolate, Beer and Electricity Production 1958-1990", y = "Production")+
+  scale_color_manual(values = c("Chocolate" = "springgreen4",
+                                "Beer" = "springgreen4",
+                                "Electricity" = "springgreen4")) +
+  theme_minimal()
+
+#     using ggplot() one plot over another
+# re-organize data in a "long" data frame: this means there is a single column for production, and another column with the category
+df_CBE_4plot <- df_CBE %>%
+  pivot_longer(cols = -time, names_to = "product", values_to = "production")
+
+# generate plots
+ggplot(df_CBE_4plot, mapping = aes(x = time, y = production)) +
+  geom_line(color = "springgreen4") +
+  facet_grid(product ~ ., scales = "free_y") +  # Arrange vertically, free_y for independent y axis
+  labs(title = "Chocolate, Beer and Electricity Production 1958-1990") +
+  theme_minimal()
