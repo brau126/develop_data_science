@@ -64,6 +64,17 @@ options(scipen = 999)
 # visualizacion del correlograma
 acf(ts_regular_mes, col = "palegreen4")
 
+# prueba box cox extendida para tranformar datos
+# Box Cox
+bc_conf <- boxcox (ts_regular_mes~1,lambda = seq(-5,5,0.001),plotit=TRUE)
+# Lambda óptimo
+lambda <- bc_conf$x[which.max(bc_conf$y)]
+title(main = "Figure 2: Box-Cox of Yt")
+# Agregar nota al pie de página
+mtext(side = 1, line = 4, at = -5, adj = 0, "Source: Authors work")
+# Mostrar el valor de lambda óptimo
+cat("Lambda optima:", lambda)
+
 ########################## Analisis Empirico ##########################
 # tabla de estadisticos descriptivos
 descripcion <- data.frame(
