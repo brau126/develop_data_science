@@ -2,7 +2,7 @@
 title: "Cálculo de Prima de Seguro de Producción de Aguacate usando GLM"
 author: "Canedo B, Braulio y Rueda V, M Rocio"
 date: "2025-03-17"
-output: html_document
+output: pdf_document
 ---
 
 ```{r librerias, include=FALSE}
@@ -664,13 +664,17 @@ dummy_cols(indice_criminalidad, select_columns = "estado")
 
 
 # 5. Metodologia
-La metodologia empleada en este estudio se basa en un enfoque cuantitativo y un diseño de investigación descriptivo. Esto se debe a la utilización de variables concretas, datos numéricos e información estadistica con el propósito de realizar un análisis detallado sobre el cultivo de aguacate en México durante el periodo 2003-2022.  
+La metodología empleada en este estudio se basa en un enfoque cuantitativo y un diseño de investigación descriptivo, debido al uso de variables observables, datos numéricos e información estadística con el propósito de realizar un análisis detallado sobre el cultivo de aguacate en México durante el periodo 2003–2022.
 
-Para el diseño del seguro dirigido a los productores de aguacate, se calculó la prima pura de riesgo mediante un modelo lineal generalizado.
+Para el diseño del seguro, se calculó la prima pura de riesgo mediante un Modelo Lineal Generalizado (GLM) con distribución Gamma y enlace logarítmico, dada la naturaleza continua, de cola pesada y asimétrica de la variable dependiente: las pérdidas agrícolas durante la siembra-cosecha de la producción. El análisis se sustentó en dos fuentes principales de datos: por un lado, la información de producción de aguacate proviene del Sistema de Información Agroalimentaria y Pesquera (SIAP), dependiente de la Secretaría de Agricultura, Ganadería, Desarrollo Rural, Pesca y Alimentación (SAGARPA); por otro lado, los datos de violencia fueron extraídos de la base de datos de la Universidad de Uppsala, que proporciona información detallada sobre eventos armados, enfrentamientos y muertes violentas entre cárteles y civiles.
 
-El análisis se sustentó en dos fuentes principales de datos. Por un lado, la información sobre la producción de aguacate proviene del Sistema de Información Agroalimentaria y Pesquera (SIAP) de la Secretaria de Agricultura, Ganaderia, Desarrollo Rural, Pesca y Alimentación (SAGARPA). Por otro lado, los datos sobre violencia en México fueron extraidos de la base de datos de la Universidad de Uppsala, la cual proporciona información detallada sobre los distintos niveles y caracteristicas de los eventos violentos. Ambas bases de datos abarcan el periodo comprendido entre 2003 y 2022.  
+Ambas bases abarcan el periodo comprendido entre 2003 y 2022, y fueron depuradas mediante Excel y R, conservando únicamente la información relevante para el análisis. En el caso de la producción de aguacate, se consideraron variables como superficie sembrada, cosechada y siniestrada, volumen de producción (en toneladas por hectárea), precios y valor económico. Para la base de datos sobre violencia, se utilizaron las muertes totales registradas por entidad federativa y año, lo cual permitió construir un índice de criminalidad por estado. Este índice se calculó como la tasa de muertes violentas por cada 100,000 habitantes, utilizando los censos poblacionales de 2000, 2005, 2010 y 2020 obtenidos del Instituto Nacional de Estadística y Geografía, e interpolando linealmente la población para los años faltantes, con el objetivo de normalizar las tasas y permitir comparaciones interanuales.
 
-Para el tratamiento de los datos, se llevó a cabo un proceso de depuración utilizando Excel y el software R, con el objetivo de conservar únicamente la información relevante. En el caso de la base de datos de producción de aguacate, se incluyeron variables como superficie sembrada, cosechada, siniestrada y volumen de producción (expresado en toneladas por hectárea) y precios en pesos mexicanos. En cuanto a la base de datos sobre violencia, se consideraron las muertes totales derivadas de enfrentamientos entre grupos criminales, el gobierno y civiles.  
+Posteriormente, se llevó a cabo un análisis exploratorio, incluyendo una tabla de frecuencias por intervalos de pérdida de producción para visualizar la distribución empírica. A partir de dicha distribución, se supuso inicialmente que los datos seguían un patrón exponencial; sin embargo, se procedió a ajustar diferentes distribuciones teóricas: exponencial, lognormal, Gamma y Pareto II. Se compararon los resultados con base en criterios de información como el AIC, BIC y loglikelihood, obteniendo que la distribución Pareto II presentaba el mejor ajuste. No obstante, se identificó un problema de sobreajuste, ya que el modelo Pareto II tendía a ajustarse de forma excesiva a los valores extremos, perdiendo capacidad de generalización y generando inestabilidad en las predicciones. Por esta razón, se optó por continuar con la distribución Gamma, que presentó el segundo mejor valor de AIC y ofreció una estructura funcional más estable.
+
+Una vez definido el modelo GLM, se consideró como variable de respuesta la pérdida de producción (superficie sembrada menos superficie cosechada), y como variables explicativas el índice de criminalidad, el volumen de producción, el precio por tonelada y el valor total de producción. El modelo fue validado mediante diversas pruebas estadísticas (linealidad, independencia, multicolinealidad y la homocedasticidad). 
+
+A fin de generar un modelo de proyección, se simularon datos sintéticos para las variables predictoras utilizando generadores congruenciales lineales controlados, respetando la estructura observada de los datos históricos y sus correlaciones principales. Por último, se diseñó un escenario de simulación para evaluar la exposición del reasegurador frente a eventos extremos, aplicando la simulación de bootstrap sobre los estados con índices altos de criminalidad. Se simuló un contrato de reaseguro incorporando una retención fija y un límite máximo de cobertura, calculando el Valor en Riesgo (VaR) al percentil 99.5% y generando un intervalo de confianza mediante resampling con 2000 réplicas. Este análisis permitió evaluar la prima técnica necesaria, el ratio de siniestralidad bajo condiciones adversas y la estabilidad del contrato frente a escenarios críticos. En conjunto, el presente proyecto brinda una propuesta técnica robusta útil para el diseño de seguros agrícolas en contextos de afectaciones por el crimen organizado.
 
 
 # 6. Modelo
@@ -724,7 +728,7 @@ $$\log(\mu_i) = \beta_0 + \beta_1 \text{indice crim}_i + \beta_2 \text{Volumenpr
  
 Las hipótesis a contrastar para cada coeficiente $\beta_j$ son:
  
-Para cada predictor $\( j = 1, 2, 3, 4 \)$:
+Para cada predictor $ (j = 1, 2, 3, 4) $:
  
 $$
 \begin{aligned}
