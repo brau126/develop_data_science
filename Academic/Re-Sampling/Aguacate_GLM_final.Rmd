@@ -2,7 +2,7 @@
 title: "Cálculo de Prima de Seguro de Producción de Aguacate usando GLM"
 author: "Canedo B, Braulio y Rueda V, M Rocio"
 date: "2025-03-17"
-output: html_document
+output: pdf_document
 ---
 
 ```{r librerias, include=FALSE}
@@ -36,6 +36,8 @@ library(lmtest)
 # Crear tbalas estilizadas
 library(knitr)
 library(kableExtra)
+library(tinytex)
+
 
 # Evitar notación cientifica
 options(scipen = 999) # evitar notación cientifica
@@ -62,7 +64,7 @@ options(scipen = 999) # evitar notación cientifica
 
 #========================== IMPORTACION BRAU =================================#
 # Crear un vector con todos los nombres de las hojas
-base_aguacate <- readxl::excel_sheets("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/datos/base_aguacate.xlsx")
+base_aguacate <- readxl::excel_sheets("datos/base_aguacate.xlsx")
 
 # Lista vacia para guardar cada una de las hojas del data frame
 base_list <- list()
@@ -70,7 +72,7 @@ base_list <- list()
 # Ciclo for para extraer todas las hojas
 #       NOTA: para colocar nombres a valores de una lista se ponen solo nombres númericos, para poder uno de texto poner doble corchete
 for (k in base_aguacate) {
-  base_list[[k]] <- readxl::read_excel("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/datos/base_aguacate.xlsx",
+  base_list[[k]] <- readxl::read_excel("datos/base_aguacate.xlsx",
                                     sheet = k)
 }
 
@@ -78,7 +80,7 @@ for (k in base_aguacate) {
 df_aguacate <- dplyr::bind_rows(base_list, .id = "source")
 
 # Importar datos de seguridad
-df_deaths <- readr::read_csv("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/datos/ucdp_deaths_violence.csv", show_col_types = FALSE)
+df_deaths <- readr::read_csv("datos/ucdp_deaths_violence.csv", show_col_types = FALSE)
 
 ```
 
@@ -97,6 +99,7 @@ El seguro agricola tiene como objetivo minimizar riesgos en la producción, prom
 
 Los resultados que se obtengan de esta propuesta de seguro pueden ser utilizados como base para que el sector asegurador tenga la oportunidad de ofrecer un servicio a favor de la protección de la producción de aguacate, de manera accesible a las capacidades económicas de los agricultores, considerando la relación costo-beneficio para las familias y empresas.
 
+**Para la visualización del código en Github usar la siguiente liga:** https://github.com/brau126/develop_data_science/blob/main/Academic/Re-Sampling/Aguacate_GLM_final.Rmd
 
 # 2. Objetivo
 Calcular la Prima Pura de Riesgo que cubra las pérdidas durante la producción del Aguacate en México, usando datos entre 2003 y 2022.
@@ -105,7 +108,6 @@ Calcular la Prima Pura de Riesgo que cubra las pérdidas durante la producción 
   2. Segmentar los datos por zonas de riesgo, considerando la influencia de operaciones delictivas relacionadas con el narcotráfico.
   3. Realizar un análisis de estrés sobre el cálculo de la Prima Pura de Riesgo mediante simulaciones, con el objetivo de evaluar su sensibilidad ante escenarios adversos.	
 
-> Para la visualización del código en Github usar la siguiente liga: https://github.com/brau126/develop_data_science/blob/main/Academic/Re-Sampling/Aguacate_GLM_final.Rmd
 
 # 3. Literatura (Marco teórico)
 ## 3.1. Contexto histórico
@@ -249,11 +251,11 @@ ggcorrplot(matriz_cor,  title = "Matriz de correlación de la producción Aguaca
 ##  4.4. Producción y Pérdidas de Aguacate
 Guiándose de los valores de Volumen de Producción de la SIAP de 2003 a 2022 se observa una clara tendencia a la alza de la producción de Aguacate. Con un crecimiento lineal controlado.
 
-![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/produccion_aguacate_serie.png"){width='500px'}
+![]("imagenes/produccion_aguacate_serie.png"){width='500px'}
 
 Tomando en cuenta la alza de producción y la demanda del aguacate es importante comprender y corroborar la distribución de su producción a lo largo de la República Mexicana, pues según Le Cour Grandmaison & Frissard Martinez (2024) utilizando datos dde la SIAP Michoacán es el estado que mas concentró le producción de aguacate, abarcando un 73% de la cantidad de producción nacional.
 
-![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/produccion_aguacate_mapa.png"){width='500px'}
+![]("imagenes/produccion_aguacate_mapa.png"){width='500px'}
 
 Evidencia que Michoacan a lo largo de 19 años a concentrado un 80% del Volumen de Producción.
 ```{r produccion_michoacan}
@@ -263,13 +265,13 @@ sum(df_aguacate %>%
 ```
 Por ello mismo también influye en que sea el estado en el cual se han presentado mayor cantidad de Pérdidas de Toneladas con respecto a las toneladas de Aguacate Sembrado y lo Cosechado. A pesar de la diferencia de producción las pérdidas si presentan mayor dispersión.
 
-![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/perdida_siembra_mapa.png"){width='500px'}
+![]("imagenes/perdida_siembra_mapa.png"){width='500px'}
 
 Habiendo presencias de perdidas presentes en Jalisco, se puede suponer que está relacionado con la presencia del cartel Jalisco nueva generación y en todo caso ser posible visualizar una correlación entre las perdidas de siembra y presencia se carteles. Viendo solo la distribución de la cantidad de conflictos armados de carteles por cada estado, a primera vista no hay una presencia de alguna correlación.
 
 No se debe dejar de lado visualizar el comportamiento de las pérdidas a lo largo de los años asi como la distribución de estados en cada uno de ls años.
 
-![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/perdida_siembra_top_estado.png"){width='500px'}
+![]("imagenes/perdida_siembra_top_estado.png"){width='500px'}
 
 Con punto máximo de pérdias en 2017 el cual posteriormente se analiza la relación que tiene con situaciones de relevancia nacional que pudieron haber inlfuido en este comportamiento. De igual se identifica un pico en 2021 tras 3 años de tendencia a la baja, también puede ser relacionable a sucesos de talla nacional que se supone pudieron haber sido un factor.
 
@@ -277,17 +279,17 @@ Con punto máximo de pérdias en 2017 el cual posteriormente se analiza la relac
 ##  4.5. Presencia de Conflictos de Cárteles
 La incetidumbre y los factores externos a los productores repercuten en la producción de aguacate, desde la inseguridad y presión que pueden ejercer grupos delictivos asi como el cobro por poder hacer uso del suelo. Deacuerdo a datos de la Universidad UPSSALA se recuperan datos de conflictos armados y violencia en México desde 1980. Con esta información y tomando en cuenta el impacto de la inseguridad es importante reconocer los estados más impactados por los grupos de crimen organizado, observando el impacto de muertes totales por estados.
 
-![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/muertes_por_estado_carteles.png"){width='500px'}
+![]("imagenes/muertes_por_estado_carteles.png"){width='500px'}
 
 Con Michoacan, el mayor productor, dentro de los primeros 5 con mayor número de muertes por conflictos entre 2003 y 2023 y con un promedio de 7.39 muertes anuales. A pesar de ser más bajo de lo esperado es solo parte de la relación de riesgo y pecencia de cirmen organizado, pues deacuerdo a Le Cour (2024) los conflictos solo son una parte de las consecuencias del crimen organizado, pues también se ven las consecuencias en personas desaparecidas, cobro de derecho de piso, extorsiones, secuestros, entre otros.
 
 A pesar de ello es importante resaltar impacto directo que tienen la presencia de agresiones directamente hacia civiles en todo el pais.
 
-![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/agresiones_civiles_mapa.png"){width='500px'}
+![]("imagenes/agresiones_civiles_mapa.png"){width='500px'}
 
 Siendo Tamaulipas, Chihuahua y Sinaloa los estados con mayor cantidad de agresiones dirigidas a civiles, seguido de Jalisco el segundo estado con más pérdidas de siembra de aguacate.
 
-![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/Top_Estados_Agreder_Civiles.png"){width='500px'}
+![]("imagenes/Top_Estados_Agreder_Civiles.png"){width='500px'}
 
 
 ```{r mapa_en_r, eval=FALSE, include=FALSE}
@@ -320,11 +322,11 @@ mapa_mundo %>%
 
 ##  4.6. Distribución empirica de las toneladas de pérdida
 Una vez comprendido las carácteristicas de la producción de aguacate y los datos de violencia y cárteles revisamos que sean ambas crecientes en el tiempo. Mas cabe resaltar que la violencia tiene tendencia afectada por factores externos por lo que su crecimeinto no es constante
-![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/produccion_aguacate_serie.png"){width='500px'}
+![]("imagenes/produccion_aguacate_serie.png"){width='500px'}
 
 Tomando eso en cuenta se compara el estado con mayor producción de aguacate y superpone su producción y la violencia.
 
-![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/michoacan_aguacate_y_muertes.png"){width='500px'}
+![]("imagenes/michoacan_aguacate_y_muertes.png"){width='500px'}
 
 Se visualizan tres momentos importantes donde hay cambios abruptos en la serie:
 
@@ -340,7 +342,7 @@ Se visualizan tres momentos importantes donde hay cambios abruptos en la serie:
   
 Aunque la relación no es evidente con el volumen de producción, mas que una tendencia a la alza, en cambio comparando con las toneladas de pérdidas se percibe el impacto
 
-![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/michoacan_perdida_y_muertes.png"){width='500px'}
+![]("imagenes/michoacan_perdida_y_muertes.png"){width='500px'}
 
 Teniendo en cuenta que el cálculo de prima será realizado por medio de GLM, es importante entender revisar el ajuste de los datos hacia alguna distribución para su mejor comprensión al momento de realizar el análisis de regresión. EL ajuste se realiza principalmente en la nueva variable creada "Perdida_siembra_cosecha".
 
@@ -574,7 +576,7 @@ indice_criminalidad <- df_deaths %>%
 
 # Normalización por población 
 # 1. Primero se necesita importar la base de datos de población por estado (obtenida en INEGI)
-base_poblacion <- readxl::read_excel("datos/poblacion_INEGI.xlsx")
+base_poblacion <- readxl::read_excel("datos/Poblacion_INEGI.xlsx")
 
 # 2. Convertir la base en tidy
 pob_tidy <- base_poblacion %>%
@@ -732,13 +734,11 @@ summary(mod_perdida_gamma)
  
 Sea el modelo:
  
-$$
-\log(\mu_i) = \beta_0 + \beta_1\,\text{índice_crim}_i + \beta_2\,\text{volumenproduccion}_i + \beta_3\,\text{Precio}_i + \beta_4\,\text{Valorproduccion}_i
-$$
+$$\log(\mu_i) = \beta_0 + \beta_1 \text{indice crim}_i + \beta_2 \text{Volumenproduccion}_i + \beta_3 \text{Precio}_i + \beta_4 \text{Valorproduccion}_i $$
  
 Las hipótesis a contrastar para cada coeficiente $\beta_j$ son:
  
-Para cada predictor \( j = 1, 2, 3, 4 \):
+Para cada predictor ( j = 1, 2, 3, 4 ):
  
 $$
 \begin{aligned}
