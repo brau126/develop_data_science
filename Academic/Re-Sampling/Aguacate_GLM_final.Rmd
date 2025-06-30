@@ -1,0 +1,1206 @@
+---
+title: "Cálculo de Prima de Seguro de Producción de Aguacate usando GLM"
+author: "Canedo B, Braulio y Rueda V, M Rocio"
+date: "2025-03-17"
+output: html_document
+---
+
+```{r librerias, include=FALSE}
+# Librerias de importacion
+library(readr)
+library(readxl)
+library(purrr)
+
+# Librerias para modificar datos
+library(tidyverse)
+library(dplyr)
+
+# Librerias para graficos
+library(ggplot2)
+library(mapdata)
+library(maps)
+library(ggrepel)
+library(ggcorrplot) # Para una gráfica elegante
+library(corrplot)   # Opción alternativa para gráficas de correlación
+# library(gwalR)
+
+# Librerias estadisticas
+library(nortest)
+library(actuar)
+library(MASS)
+library(moments)
+library(VGAM)
+library(car)
+library(lmtest)
+
+# Crear tbalas estilizadas
+library(knitr)
+library(kableExtra)
+
+# Evitar notación cientifica
+options(scipen = 999) # evitar notación cientifica
+
+```
+
+```{r importar, include=FALSE}
+#========================== IMPORTACION ROJITA =================================#
+#library(readxl)
+#base_aguacate <- excel_sheets("C:/Users/rossy/OneDrive - Universidad Autónoma del Estado de México/10. DÉCIMO #SEMESTRE/Modelos y Simulación/base_aguacate.xlsx")
+#View(base_aguacate)
+
+# Mostrar todas las hojas del excel en la consola
+#base_list<- base_aguacate%>%
+#  map(~read_excel("C:/Users/rossy/OneDrive - Universidad Autónoma del Estado de México/10. DÉCIMO SEMESTRE/Modelos y Simulación/base_aguacate.xlsx",
+#                  sheet=.x)) #.x toma como input cada elemento del objeto base_aguacate
+
+# Uniendo todos los data frames en uno solo 
+#df_aguacate <- base_list %>% reduce(bind_rows)
+
+# Extraer los datos de 
+#df_deaths <- read_csv("C:/Users/rossy/OneDrive - Universidad Autónoma del Estado de México/10. DÉCIMO SEMESTRE/Modelos y Simulación/ucdp_deaths_violence.csv", show_col_types = FALSE)
+
+
+#========================== IMPORTACION BRAU =================================#
+# Crear un vector con todos los nombres de las hojas
+base_aguacate <- readxl::excel_sheets("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/datos/base_aguacate.xlsx")
+
+# Lista vacia para guardar cada una de las hojas del data frame
+base_list <- list()
+
+# Ciclo for para extraer todas las hojas
+#       NOTA: para colocar nombres a valores de una lista se ponen solo nombres númericos, para poder uno de texto poner doble corchete
+for (k in base_aguacate) {
+  base_list[[k]] <- readxl::read_excel("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/datos/base_aguacate.xlsx",
+                                    sheet = k)
+}
+
+# Uniendo todas las tablas en una sola
+df_aguacate <- dplyr::bind_rows(base_list, .id = "source")
+
+# Importar datos de seguridad
+df_deaths <- readr::read_csv("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/datos/ucdp_deaths_violence.csv", show_col_types = FALSE)
+
+```
+
+# 1. Introducción
+
+A lo largo de los años se ha visualizado el creciente impacto de la agricultura en México, contando con una aportación mayor en relación con el sector pesquero, pecuario y acuicola.
+
+Esta actividad otorga diversos beneficios al proveer alimentos, materias primas, mano de obra, empleos y recursos económicos. Sin embargo, la posición geográfica, y caracteristicas geológicas, hidrológicas y meteorológicas pueden desencadenar impactos negativos en este sector, tales como la pérdida de la producción, aumento en los precios y afectaciones en el bienestar social.
+De manera especifica, la producción de aguacate a nivel nacional se ha visto afectada por cambios climáticos y temporadas prolongadas de sequia, lluvia y plagas. Además, las variables exógenas como la oferta, demanda, problemáticas sociales y politicas e industrialización han provocado vulnerabilidad en miles de productores mexicanos.
+
+De acuerdo con datos del Banco de México, durante el 2021 el valor de las exportaciones de aguacate ascendió a 3 mil 85 millones de dólares, un incremento de 14.2% en comparación con los 2 mil 699 millones reportados en 2020. De esta forma, el aguacate se ubicó como el tercer producto agroindustrial que más vende México al mundo, sólo por debajo de la cerveza (Carbajal, 2022).
+
+Por esta razón, se considera importante la implementación de una estrategia como gestión de riesgo para la cosecha, control de plagas y protección ante factores naturales. Dicha estrategia se basa en una alternativa asequible a través de la identificación de la naturaleza del riesgo y el tipo de seguro más conveniente.
+
+El seguro agricola tiene como objetivo minimizar riesgos en la producción, promover la creación y aumento de capital y garantizar un mecanismo de compensación en caso de la ocurrencia de siniestros. 
+
+Los resultados que se obtengan de esta propuesta de seguro pueden ser utilizados como base para que el sector asegurador tenga la oportunidad de ofrecer un servicio a favor de la protección de la producción de aguacate, de manera accesible a las capacidades económicas de los agricultores, considerando la relación costo-beneficio para las familias y empresas.
+
+
+# 2. Objetivo
+Calcular la Prima Pura de Riesgo que cubra las pérdidas durante la producción del Aguacate en México, usando datos entre 2003 y 2022.
+
+  1. Ajustar los riesgos asociados a la producción de aguacate en México durante el periodo 2003-2023 mediante un Modelo Lineal Generalizado (GLM).
+  2. Segmentar los datos por zonas de riesgo, considerando la influencia de operaciones delictivas relacionadas con el narcotráfico.
+  3. Realizar un análisis de estrés sobre el cálculo de la Prima Pura de Riesgo mediante simulaciones, con el objetivo de evaluar su sensibilidad ante escenarios adversos.	
+
+
+# 3. Literatura (Marco teórico)
+## 3.1. Contexto histórico
+
+El árbol de aguacate es originario de Mesoamérica, con sus raices en el centro de México y en algunas regiones montañosas de Guatemala. La evidencia más antigua del uso del aguacate como alimento se encuentra en la cueva de Coxcatlán, ubicada en Tehuacán, Puebla. 
+
+A nivel mundial, más de 60 paises producen aguacate, y existen más de 500 variedades de esta fruta. En México, se destacan tres variedades principales: el aguacate Hass, el Criollo y el Fuerte. (Gobierno de México, 2016)
+
+En el 2022, Michoacán fue responsable del 73% de la producción total de aguacates en México, destacando los municipios de Tancitaro, Uruapan y Tacámbaro como pilares de la industria. Sin embargo, el crecimiento de los cultivos de aguacate no ha generado beneficios equitativos para todos los involucrados. En múltiples ocasiones, este fenómeno ha estado impulsado por acuerdos entre el crimen organizado y autoridades locales.
+
+Según el estudio realizado por Le Cour Grandmaison y Frissard Martinez (2024), las regiones con altos niveles de inseguridad tienden a convertir la violencia en una herramienta politica y económica. En este contexto, la expansión del mercado de aguacates se ha visto favorecida por la colaboración entre autoridades, élites locales y grupos violentos.
+
+La industria del aguacate también ha dejado un impacto significativo en el medio ambiente. En Michoacán, el aumento de la demanda provocó la expansión de tierras dedicadas a su cultivo, lo que resultó en deforestación y degradación del suelo, el agua y la biodiversidad. Esta expansión agricola, impulsada por la violencia ejercida por diversos actores, transformó bosques y áreas protegidas en zonas agricolas. De acuerdo con fuentes gubernamentales, el 80% de las huertas de aguacate en Michoacán fueron establecidas ilegalmente, comenzando con el uso no autorizado de tierras que posteriormente se convirtieron en parcelas legales gracias a la complicidad de las autoridades.
+
+## 3.2. Manual de Seguros de Cultivos
+
+Este manual, desarrollado por (Evans & Ballen, 2017) tiene como objetivo informar a los productores sobre cómo se puede mitigar el riesgo de la producción de aguacate a través de los programas federales de Estados Unidos disponibles relacionados a seguros agricolas. 
+
+A través de las tres secciones que contiene, se provee información acerca de:
+
+  1.	Criterios de elegibilidad del seguro (en Estados Unidos)
+
+-	Historial de producción de 4 a 10 años de rendimientos históricos de la unidad asegurada para determinar la garantia y la tasa de prima. 
+-	El monto de la prima depende del nivel de cobertura deseado (generalmente del 50 al 75%) y el porcentaje de la elección de precio (fijados en algunas politicas)
+-	Los deducibles del seguro de cosechas varian de 25 a 50% en incrementos del 5%
+
+  2.	Obtención de un estimado del seguro utilizando la herramienta de United States Department of Agriculture, Risk Management Agency
+
+  3.	Cálculo de una indemnización a través de Excel
+
+-	Las indemnizaciones (pagos de seguros) se reciben sólo si el rendimiento real es inferior a la garantia de rendimiento. Si el rendimiento real es igual a la garantia de rendimiento, no hay pago de indemnización al productor asegurado.
+
+
+## 3.3. Modelo Lineal Generalizado
+
+El modelo de regresión lineal simple se basa en los siguientes tres supuestos fundamentales:
+  
+  -	Linealidad en los parámetros.
+  -	Término de error distribuido de forma normal.
+  -	Varianza homocedástica del error. 
+
+El principal problema del modelo de regresión simple es que estos supuestos son a menudo infringidos. Tal es el caso de la varianza, que suele aumentar con la media, debido a que se espera que las pólizas con costos siniestrales más altos tengan también mayores varianzas en el número de siniestros. 
+
+Es aqui donde aparece el modelo lineal generalizado a partir de la necesidad de aportar un modelo que solucione la no linealidad en los parámetros y la no normalidad y heterocedasticidad del error.
+
+### 3.3.1. Componentes del MLG
+
+  -	Componente aleatorio
+En el modelo lineal generalizado, la variable respuesta es una serie de datos independientes que siguen una distribución de la familia exponencial (gamma, lognormal, Pareto…). Esta trata de modelizar de una forma no-normal la distribución del término de error del modelo. 
+
+  -	Componente sistemático
+Este componente es una combinación lineal de las variables explicativas
+En el trabajo realizado por Villarino G. (2017) se estudiaron las diferentes técnicas estadisticas para el ajuste de distribuciones de la familia exponencial, además de comparar los valores en riesgo y de la cola en riesgo, para el análisis de riesgo de la tarificación de seguros de auto 
+
+Posteriormente, se estimó el GLM gamma con link logaritmica propuesto por Jong y Heller y comparándolos con un GLM log-normal mediante gráficos de diagnosis de los residuos. 
+
+Esto se hizo con la finalidad de mejorar el nuevo modelo mediante la eliminación de variables no relevantes, con el din de generar interpretaciones para una póliza de una persona con caracteristicas especificas. 
+
+## 3.4.  Modelo Lineal Generalizado Mixto
+
+Con base en el articulo realizado por Bandera F. & Pérez P. (2018), los datos de investigaciones agricolas no siempre satisfacen las premisas de los modelos lineales generales; por ello es que existen los Modelos Lineales Generalizados Mixtos, que proporcionan una via de análisis para aquellos datos correlacionados y cuyas variables evaluadas sean distribuidas por parte de la familia exponencial. 
+
+Los procedimientos de estimación de los GLMMs posibilitan reducir los sesgos cuando los datos están incompletos, desbalanceados o ajustar datos dispersos y permiten además modelar la estructura de los errores en datos provenientes de mediciones longitudinales.
+
+Los modelos lineales mixtos son una generalización de modelos lineales generales y se emplean cuando:
+
+-	Los efectos son aleatorios: donde el conjunto de valores de una variable de predictor categórico se ven no como el conjunto completo, sino como una muestra aleatoria de todos los valores 
+-	Efectos jerárquicos: donde se miden variables predictoras en más de un nivel. 
+-	Estimación por máxima verosimilitud.
+
+El algoritmo de los modelos mixtos permite calcular el mejor estimador lineal insesgado (red, Best Linear Unbiased Estimate) de efectos fijos y el mejor predictor lineal insesgado (BLUP, Best Linear Unbiased Predictor) de los efectos aleatorios. El BLUP representa la esperanza condicional de los efectos aleatorios dada a los datos observados, y es también un estimador Bayesiano. El BLUP de una combinación lineal de efectos fijos y aleatorios, es la combinación lineal de los red de efectos fijos y los BLUP de efectos aleatorios.
+
+
+
+# 4. Análisis exploratorio
+
+## 4.1. Limpieza y Organización Previa
+
+Es importante visualizar si la base de datos de df_deaths tiene diferenciado a los datos de Distrito Federal y Ciudad de México como dos estados diferentes, primero es necesario homogenizar.
+
+```{r unicos_estados}
+# Observamos los valores únicos de los estados
+unique(df_deaths$adm_1)
+```
+
+Dado que no solo no se tiene homogenizado se modifican los datos no solo para homogeinizar, pero también para retirar la palabra state de cada de los estados, aunado a ello se retira la palabra state de cada uno de los valores.
+
+```{r homogenizar_estado}
+# Intercambiamos los valores de Distrito Federal
+df_deaths <- df_deaths %>%
+  dplyr::mutate(adm_1 = gsub(" state", "", adm_1)) %>% # la función gsub funciona como un buscar y reemplazar
+  dplyr::mutate(adm_1 = dplyr::recode(adm_1,
+                        "Distrito Federal" = "Ciudad de Mexico")
+         )
+```
+
+
+```{r generar_valor_perdida}
+# Para la tabla de Violencia se añade la columna del total de muertes
+df_deaths <- df_deaths %>%
+  mutate(df_deaths, total_muertes = deaths_a + deaths_b+deaths_civilians + deaths_unknown)
+
+# Columna de perdida/merma entre siembra y cosecha
+df_aguacate <- df_aguacate %>%
+  mutate(df_aguacate, perdida_siembra_cosecha = Sembrada - Cosechada)
+```
+
+## 4.2. Descripción de Columnas
+
+```{r data_frame_desc}
+# Crear la tabla descriptiva
+descripcion <- df_aguacate %>% 
+  summarise(across(where(is.numeric), list(
+    Observaciones = ~ sum(!is.na(.)),
+    Media = ~ mean(., na.rm = TRUE),
+    Mediana = ~ median(., na.rm = TRUE),
+    Varianza = ~ var(., na.rm = TRUE),
+    Minimo = ~ min(., na.rm = TRUE),
+    Maximo = ~ max(., na.rm = TRUE),
+    Curtosis = ~ kurtosis(., na.rm = TRUE)
+  ), .names = "{col}_{fn}")) %>% 
+  pivot_longer(everything(), names_to = c("Variable", ".value"), names_sep = "_")
+
+descripcion
+```
+
+
+```{r matriz_correlacion}
+# Calcular la matriz de correlación
+matriz_cor <- cor(df_aguacate %>%
+                    dplyr::select(Anio,Idestado,Idmunicipio,Idciclo,Idmodalidad,Idunidadmedida,
+                                Sembrada,Cosechada,Siniestrada,Volumenproduccion,Rendimiento,
+                                Precio,Valorproduccion,perdida_siembra_cosecha))
+
+# Crear el gráfico de correlación
+ggcorrplot(matriz_cor,  title = "Matriz de correlación de la producción Aguacate",
+           lab = TRUE, lab_size = 1.75,
+           colors = c("darkslategray","white","darkolivegreen4"))
+```
+
+##  4.4. Producción y Pérdidas de Aguacate
+Guiándose de los valores de Volumen de Producción de la SIAP de 2003 a 2022 se observa una clara tendencia a la alza de la producción de Aguacate. Con un crecimiento lineal controlado.
+
+![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/produccion_aguacate_serie.png"){width='500px'}
+
+Tomando en cuenta la alza de producción y la demanda del aguacate es importante comprender y corroborar la distribución de su producción a lo largo de la República Mexicana, pues según Le Cour Grandmaison & Frissard Martinez (2024) utilizando datos dde la SIAP Michoacán es el estado que mas concentró le producción de aguacate, abarcando un 73% de la cantidad de producción nacional.
+
+![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/produccion_aguacate_mapa.png"){width='500px'}
+
+Evidencia que Michoacan a lo largo de 19 años a concentrado un 80% del Volumen de Producción.
+```{r produccion_michoacan}
+sum(df_aguacate %>%
+      filter(Nomestado == "Michoacan") %>% # primero hay que filtrar
+      dplyr::select(Volumenproduccion)) / sum(df_aguacate$Volumenproduccion)
+```
+Por ello mismo también influye en que sea el estado en el cual se han presentado mayor cantidad de Pérdidas de Toneladas con respecto a las toneladas de Aguacate Sembrado y lo Cosechado. A pesar de la diferencia de producción las pérdidas si presentan mayor dispersión.
+
+![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/perdida_siembra_mapa.png"){width='500px'}
+
+Habiendo presencias de perdidas presentes en Jalisco, se puede suponer que está relacionado con la presencia del cartel Jalisco nueva generación y en todo caso ser posible visualizar una correlación entre las perdidas de siembra y presencia se carteles. Viendo solo la distribución de la cantidad de conflictos armados de carteles por cada estado, a primera vista no hay una presencia de alguna correlación.
+
+No se debe dejar de lado visualizar el comportamiento de las pérdidas a lo largo de los años asi como la distribución de estados en cada uno de ls años.
+
+![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/perdida_siembra_top_estado.png"){width='500px'}
+
+Con punto máximo de pérdias en 2017 el cual posteriormente se analiza la relación que tiene con situaciones de relevancia nacional que pudieron haber inlfuido en este comportamiento. De igual se identifica un pico en 2021 tras 3 años de tendencia a la baja, también puede ser relacionable a sucesos de talla nacional que se supone pudieron haber sido un factor.
+
+
+##  4.5. Presencia de Conflictos de Cárteles
+La incetidumbre y los factores externos a los productores repercuten en la producción de aguacate, desde la inseguridad y presión que pueden ejercer grupos delictivos asi como el cobro por poder hacer uso del suelo. Deacuerdo a datos de la Universidad UPSSALA se recuperan datos de conflictos armados y violencia en México desde 1980. Con esta información y tomando en cuenta el impacto de la inseguridad es importante reconocer los estados más impactados por los grupos de crimen organizado, observando el impacto de muertes totales por estados.
+
+![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/muertes_por_estado_carteles.png"){width='500px'}
+
+Con Michoacan, el mayor productor, dentro de los primeros 5 con mayor número de muertes por conflictos entre 2003 y 2023 y con un promedio de 7.39 muertes anuales. A pesar de ser más bajo de lo esperado es solo parte de la relación de riesgo y pecencia de cirmen organizado, pues deacuerdo a Le Cour (2024) los conflictos solo son una parte de las consecuencias del crimen organizado, pues también se ven las consecuencias en personas desaparecidas, cobro de derecho de piso, extorsiones, secuestros, entre otros.
+
+A pesar de ello es importante resaltar impacto directo que tienen la presencia de agresiones directamente hacia civiles en todo el pais.
+
+![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/agresiones_civiles_mapa.png"){width='500px'}
+
+Siendo Tamaulipas, Chihuahua y Sinaloa los estados con mayor cantidad de agresiones dirigidas a civiles, seguido de Jalisco el segundo estado con más pérdidas de siembra de aguacate.
+
+![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/Top_Estados_Agreder_Civiles.png"){width='500px'}
+
+
+```{r mapa_en_r, eval=FALSE, include=FALSE}
+#=============================== Chunk Pausado, se hizo en Power BI ===============================
+##  2. Mapas de producción de aguacate y presencia del narcotráfico
+## Listo en power bi
+options(scipen = 999)
+mapa_mundo <- map_data('world')
+mapa_mundo %>%
+  ggplot() +
+  geom_polygon(aes( x= long, y = lat, group = group),
+               fill = "grey80",
+               color = "white") +
+  theme_minimal() +
+  theme(
+    axis.line = element_blank(),
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    panel.background = element_rect(colour= "black", size= 1)) +
+            coord_fixed(xlim = c(-118, -86), 
+            ylim = c(14, 33), 
+            ratio = 1.2) +
+  geom_point(data= df_deaths, 
+             aes(x=longitude, y = latitude, size = df_deaths$total_muertes/100), 
+             stroke = F) +
+  scale_size_continuous(name = "No. muertes") +
+  ggtitle( "Cantidad de muertes por narcotráfico en la República Mexicana") 
+```
+
+##  4.6. Distribución empirica de las toneladas de pérdida
+Una vez comprendido las carácteristicas de la producción de aguacate y los datos de violencia y cárteles revisamos que sean ambas crecientes en el tiempo. Mas cabe resaltar que la violencia tiene tendencia afectada por factores externos por lo que su crecimeinto no es constante
+![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/produccion_aguacate_serie.png"){width='500px'}
+
+Tomando eso en cuenta se compara el estado con mayor producción de aguacate y superpone su producción y la violencia.
+
+![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/michoacan_aguacate_y_muertes.png"){width='500px'}
+
+Se visualizan tres momentos importantes donde hay cambios abruptos en la serie:
+
+  - 2009 
+      - Guerra abierta de cárteles en Ciudad Juárez, el gobierno de Calderón envia 5mil solados adicionales
+      - Incendio de guarderia ABC, lamentable suceso el cual se sospecha fue cortina de humo
+      - Asesinato de lider del cártel de los Beltran-Leyva
+  - 2017
+      - El Chapo es aprehendido a finales del 2016
+  - 2021
+      - Cienfuegos es liberado tras ser acusado por el gobierno Estadounidense de colusión con cárteles
+      - Caro Quintero es liberado tras falta de evidencia en su contra
+  
+Aunque la relación no es evidente con el volumen de producción, mas que una tendencia a la alza, en cambio comparando con las toneladas de pérdidas se percibe el impacto
+
+![]("D:/Documentos_D/0uni/fac_escuela/Modelos_Sim/Aguacate/imagenes/michoacan_perdida_y_muertes.png"){width='500px'}
+
+Teniendo en cuenta que el cálculo de prima será realizado por medio de GLM, es importante entender revisar el ajuste de los datos hacia alguna distribución para su mejor comprensión al momento de realizar el análisis de regresión. EL ajuste se realiza principalmente en la nueva variable creada "Perdida_siembra_cosecha".
+
+Primero es necesario entender las genralidades de la Pérdida, para ello primero se resumen las pérdidas en una tabla de frecuencia por intervalos, pues graficar sin ello complica una interpretación adecuada.
+
+```{r}
+# Crear intervalos
+n_intervalos = 50
+ancho_intervalo = max(df_aguacate$perdida_siembra_cosecha) / n_intervalos
+
+# Creamos tabla de frecuencia
+tabla_frec_syc <- df_aguacate %>%
+  filter(perdida_siembra_cosecha != 0) %>%
+  dplyr::select(perdida_siembra_cosecha) %>%
+  dplyr::mutate(intervalo_perd_syc = cut_width(perdida_siembra_cosecha,
+                                   width = ancho_intervalo)) %>%
+  group_by(intervalo_perd_syc) %>%
+  summarize(frec_perdida = n()) %>%
+  complete(intervalo_perd_syc, fill = list(frec = 0))
+
+tabla_frec_syc
+```
+
+Se grafican las frecuencias de los intervalos, para visualizar la distribución empirica de las pérdidas, omitiendo todos los valores de cero que indiquen que no hay pérdida.
+
+```{r distribucion_perdidas}
+# Histograma de datos
+ggplot(tabla_frec_syc, aes(x=intervalo_perd_syc, y = frec_perdida))+
+  geom_col(fill = "indianred3") +
+#  geom_histogram(aes(y = after_stat(frec_perdida)), binwidth = 1, fill="purple", color="black") +
+  labs(title = "Pérdidas en toneladas omitiendo valores de cero",
+       x= "Intervalo de pérdida",
+       y= "Frecuencia") +
+  guides(x = guide_axis(angle = 90)) +
+  theme_minimal()
+```
+
+De manera visual y como primera conclusión se puede suponer que las pérdidas se distriuyen Exponencial, con varios valores extremos. Es necesario comprobar esta hipótesis con purebas estadisticas. Mas antes es necesario buscar la forma de evitar valores extremos para evitar la necesidad de censura.
+
+Se opta por no usar los valores absolutos, en cambio utilizar un indice de pérdida donde cada una de las pérdidas se divide entre el promedio de cosecha $$Indice = \frac{Sembrada - Cosechada}{mean(Cosechada)}$$, la mediana no pues se ve sesgada.
+
+```{r dist_indice}
+# Creamos primero 
+df_aguacate <- df_aguacate %>%
+  dplyr::mutate(df_aguacate, indice_perdida_cys = perdida_siembra_cosecha/mean(Cosechada))
+
+# Indice vs Absoluto
+options(scipen = 999) # evitar notación cientifica
+df_aguacate %>%
+  dplyr::select(c(perdida_siembra_cosecha, indice_perdida_cys)) %>%
+  dplyr::mutate(indice_perdida_cys = round(indice_perdida_cys, 4))
+```
+
+Se gráfica para observar la modificación del indice y ver su distribución empirica, se omiten valores de 0.
+
+```{r interval_indice_grafica}
+# Crear intervalos
+#n_intv_ind = 1/2
+#ancho_intervalo_ind = max(df_aguacate$indice_perdida_cys) / n_intv_ind
+ancho_intervalo_ind = 0.3
+
+# Filtrar y crear nuevo data frame omitiendo los valores de 0
+tabla_frec_indice_syc <- df_aguacate %>%
+  filter(indice_perdida_cys != 0) %>%
+  dplyr::select(indice_perdida_cys) %>%
+  dplyr::mutate(intervalo_indice_syc = cut_width(indice_perdida_cys,
+                                          width = ancho_intervalo_ind)) %>%
+  group_by(intervalo_indice_syc) %>%
+  summarize(frec_ind_perdida = n())  %>%
+  complete(intervalo_indice_syc, fill = list(frec = 0))
+
+# Graficamos histograma del indice de pérdida
+ggplot(data = tabla_frec_indice_syc, aes(x = intervalo_indice_syc, y = frec_ind_perdida)) +
+  geom_col(fill = "indianred3") +
+  labs(title = "Distribución empirica de los indices de pérdida",
+       y = "Frecuencia",
+       x = "Indice de Pérdida")+
+  guides(x = guide_axis(angle = 90)) +
+  theme_minimal()
+```
+
+### 4.6.1 Ajuste a Distribución
+```{r ajuste_lognormal}
+##  4.7. Ajuste de Distribución
+# ---- AJUSTE LOG-NORMAL ----#
+library(fitdistrplus)
+library(nortest)
+
+# Crear nuevo data frame omitiendo los valores NA
+tabla_frec_2 <- tabla_frec_indice_syc$frec_ind_perdida
+tabla_frec_indice_syc_2 <- tabla_frec_2[!is.na(tabla_frec_2)]
+
+dislogn <- fitdist(tabla_frec_indice_syc_2, "lnorm", method = "mle")
+
+summary(dislogn)
+confint(dislogn)
+gofstat(dislogn)
+mu<-dislogn$estimate[1]
+sigmaln<-dislogn$estimate[2]
+
+ks.test(tabla_frec_indice_syc_2,"plnorm", meanlog=mu, sdlog<-sigmaln)
+
+ad.test(plnorm(tabla_frec_indice_syc_2, meanlog=mu, sdlog<-sigmaln ))
+
+```
+
+```{r ajuste_pareto}
+#--- AJUSTE PARETO ----#
+fitpareto <- fitdist(tabla_frec_indice_syc_2, "pareto",
+                     method = "mge")
+
+summary(fitpareto)
+
+fitpareto$estimate
+
+confint(fitpareto)
+
+gofstat(fitpareto)
+
+alphap<-fitpareto$estimate[1]
+
+thetap<-fitpareto$estimate[2]
+
+ks.test(tabla_frec_indice_syc_2,"ppareto", shape=alphap, scale=thetap)
+
+ad.test(ppareto(tabla_frec_indice_syc_2,shape=alphap , scale=thetap))
+```
+
+```{r ajuste_exp}
+# --- AJUSTE EXPONENCIAL --- #
+
+# Ajuste por método de momentos
+fitexp <- fitdist(tabla_frec_indice_syc_2, "exp", method = "mme")
+
+# Resumen del ajuste
+summary(fitexp)
+
+# Estimación del parámetro
+fitexp$estimate
+rate_exp <- fitexp$estimate["rate"]
+
+# Intervalos de confianza
+confint(fitexp)
+
+# Estadísticos de Bondad de ajuste
+gofstat(fitexp)
+
+# Prueba K-S
+ks.test(tabla_frec_indice_syc_2, "pexp", rate = rate_exp)
+
+# Prueba A-D
+ad.test(pexp(tabla_frec_indice_syc_2, rate = rate_exp))
+
+
+```
+
+```{r ajuste_gamma}
+#--- AJUSTE GAMMA ----#
+iniciales_gamma <- fitdist(tabla_frec_indice_syc_2, "gamma",
+                     method = "mme")
+
+ini_shape <- iniciales_gamma$estimate[1]
+ini_rate <- iniciales_gamma$estimate[2]
+
+summary(iniciales_gamma)
+
+iniciales_gamma$estimate
+
+confint(iniciales_gamma)
+
+gofstat(iniciales_gamma)
+
+ks.test(tabla_frec_indice_syc_2,"pgamma", shape=ini_shape, rate=ini_rate)
+
+ad.test(pgamma(tabla_frec_indice_syc_2, shape=ini_shape , rate = ini_rate))
+
+################################
+fitgamma <- fitdist(tabla_frec_indice_syc_2, "gamma",
+                    start = list(shape = 1, rate = 1),
+                    method = "mle")
+
+est_shape <- fitgamma$estimate[1]
+est_rate <- fitgamma$estimate[2]
+
+summary(fitgamma)
+
+fitgamma$estimate
+
+confint(fitgamma)
+
+gofstat(fitgamma)
+
+ks.test(tabla_frec_indice_syc_2,"pgamma", shape=est_shape, rate=est_rate)
+
+ad.test(pgamma(tabla_frec_indice_syc_2, shape = est_shape , rate = est_rate))
+```
+
+```{r}
+# Graficar ajustes
+# x11()
+cdfcomp(list(dislogn, fitpareto, fitexp, iniciales_gamma, fitgamma))
+
+# Lista de los ajustes
+modelos <- list(dislogn, fitpareto, fitexp, iniciales_gamma, fitgamma)
+
+# Extraer loglik, aic y bic de cada modelo
+loglikfit <- sapply(modelos, function(x) x$loglik)
+aicfit <- sapply(modelos, function(x) x$aic)
+bicfit <- sapply(modelos, function(x) x$bic)
+
+# Combinamos en una matriz
+salida <- rbind(loglikfit, aicfit, bicfit)
+
+# Asignar nombres a las columnas y filas
+colnames(salida) <- c("LogN", "Pareto", "Exponencial", "Gamma MME", "Gamma MLE")
+rownames(salida) <- c("Loglik", "AIC", "BIC")
+salida
+```
+
+
+
+## 4.8 Indice Criminalidad
+
+```{r}
+# Tabla de indice de criminalidad
+indice_criminalidad <- df_deaths %>%
+  mutate(df_deaths, total_muertes_1 = deaths_a + deaths_b+deaths_civilians + deaths_unknown) %>%
+  group_by(year, adm_1) %>%
+  filter( year > 2002, year < 2023) %>%
+  summarise(muertes_tot = sum(total_muertes_1, na.rm = TRUE), .groups = "drop")
+
+# Normalización por población 
+# 1. Primero se necesita importar la base de datos de población por estado (obtenida en INEGI)
+base_poblacion <- readxl::read_excel("datos/poblacion_INEGI.xlsx")
+
+# 2. Convertir la base en tidy
+pob_tidy <- base_poblacion %>%
+  pivot_longer(cols = c('2000','2005','2010','2020'),
+               names_to = "año",
+               values_to = "poblacion") %>%
+  mutate(año= as.integer(año))
+
+# 3. Interpolacion 
+
+pob_completa <- pob_tidy %>%
+  group_by(Estado) %>%
+  complete(año = 2000:2023) %>%
+  arrange(Estado, año) %>%
+  mutate(poblacion_interpolada = approx(x  = año[!is.na(poblacion)],
+                                   y = poblacion[!is.na(poblacion)],
+                                   xout = año,
+                                   method = "linear",
+                                   rule= 2)$y) %>%
+  ungroup()
+
+
+# Cambiar nombre de estados en indice_criminalidad
+
+indice_criminalidad <- indice_criminalidad %>%
+  rename(estado= adm_1 ,año= year)
+
+pob_completa <- pob_completa %>%
+  rename(estado = Estado)
+
+# Modificar tipo de dato de año y estado del indice de criminalidad y población
+#str(indice_criminalidad)
+#str(pob_completa)
+indice_criminalidad$año <- as.integer(indice_criminalidad$año)
+indice_criminalidad$estado <- as.character(indice_criminalidad$estado)
+pob_completa$año <- as.integer(pob_completa$año)
+pob_completa$estado <- as.character(pob_completa$estado)
+
+# Unir la información de población total y la de muertes
+
+indice_criminalidad <- indice_criminalidad %>%
+  left_join(pob_completa %>% dplyr::select(estado, año, poblacion_interpolada), by = c("estado", "año"))
+
+# Haciendo la normalización para el indice de criminalidad cada 100,000 habitantes
+indice_criminalidad <- indice_criminalidad %>%
+  mutate(indice_crim = (muertes_tot / poblacion_interpolada) * 100000)
+
+```
+
+
+```{r}
+data_aguacate <- df_aguacate %>%
+    dplyr::select(Anio,Nomestado, Volumenproduccion, Precio, Valorproduccion, perdida_siembra_cosecha, indice_perdida_cys)
+
+# Sumando cada uno de filas por año y estado, para tener un solo valor
+data_aguacate <- data_aguacate %>%
+  group_by(Anio, Nomestado) %>%
+  summarise(across(
+    .cols = c(Volumenproduccion, Precio, Valorproduccion, perdida_siembra_cosecha, indice_perdida_cys),
+    .fns = ~ sum(.x, na.rm = TRUE)
+  ), .groups = "drop")
+
+# Cambiando los nombres de las columnas Anio y Nomestado de data_aguacate para que coincida en la busqueda con la tabla indice_criminalidad
+
+data_aguacate <- data_aguacate %>%
+  rename(estado= Nomestado ,año= Anio)
+
+# Unir las columnas de data_aguacate con indice_criminalidad
+indice_criminalidad <- indice_criminalidad %>%
+  left_join(data_aguacate %>%
+  dplyr::select(estado, año, perdida_siembra_cosecha, Precio, Valorproduccion, Volumenproduccion, indice_perdida_cys), by = c("estado", "año"))
+
+# Cambio de variable categorica para los estados
+library(fastDummies)
+dummy_cols(indice_criminalidad, select_columns = "estado")
+```
+
+
+
+
+
+# 5. Metodologia
+La metodologia empleada en este estudio se basa en un enfoque cuantitativo y un diseño de investigación descriptivo. Esto se debe a la utilización de variables concretas, datos numéricos e información estadistica con el propósito de realizar un análisis detallado sobre el cultivo de aguacate en México durante el periodo 2003-2022.  
+
+Para el diseño del seguro dirigido a los productores de aguacate, se calculó la prima pura de riesgo mediante un modelo lineal generalizado.
+
+El análisis se sustentó en dos fuentes principales de datos. Por un lado, la información sobre la producción de aguacate proviene del Sistema de Información Agroalimentaria y Pesquera (SIAP) de la Secretaria de Agricultura, Ganaderia, Desarrollo Rural, Pesca y Alimentación (SAGARPA). Por otro lado, los datos sobre violencia en México fueron extraidos de la base de datos de la Universidad de Uppsala, la cual proporciona información detallada sobre los distintos niveles y caracteristicas de los eventos violentos. Ambas bases de datos abarcan el periodo comprendido entre 2003 y 2022.  
+
+Para el tratamiento de los datos, se llevó a cabo un proceso de depuración utilizando Excel y el software R, con el objetivo de conservar únicamente la información relevante. En el caso de la base de datos de producción de aguacate, se incluyeron variables como superficie sembrada, cosechada, siniestrada y volumen de producción (expresado en toneladas por hectárea) y precios en pesos mexicanos. En cuanto a la base de datos sobre violencia, se consideraron las muertes totales derivadas de enfrentamientos entre grupos criminales, el gobierno y civiles.  
+
+
+# 6. Modelo
+- Reducción de Dimensinalidad
+
+Facilitar el análisis de múltiples factores de crimen organizado que afectan a la producción de los productores de aguacate,tras haber complementado con la información necesaria de estorsiones, derechos de piso, desapariciones, entre otros.
+
+- Segmetación de Datos
+
+Reconocer la influencia que tienen los factores de violencia sobre las pérdidas en la producción, para delimitar zonas de riesgo y ajustar el valor de la prima con valores de sobre cargo dependiendo ubicación de la producción. Dicha clusterización se deja para el sigueinte parcial pues como se comenta en la sección 4.5. hay autores que en estudios previos resaltan que la presencia de desaparición de personas también es un indicador importante de presencia y presión de crimen organizado, entre otros factores, por lo que es necesario complementar la información.
+
+- Modelo Lineal Generalizado
+
+Tomar en cuenta la distribución de las péridas del aguacte se valora la apliación de un GLM basandose ya sea en la distribución exponencial o la gamma. Donde la variable dependiente es la prima pura de riesgo explicada por todos los factores que afectnan las péridas en la producción, ya sean factores propios de la producción como ciclo productivo y sequia o los elementos de violencia subyacentes.
+
+- Análisis de Estrés de la Prima Pura de Riesgo
+
+Generar escenarios adversos y extremos se somete a estrés la metodologia usada para el cálculo de la PPR y verificando asi la propia capacidad del modelo de adaptarse a casos extremos cubietos por la póliza.
+
+## 6.1 Ajuste a Modelo GLM
+Se ajustó un modelo lineal generalizado (GLM) con distribución Gamma y función de enlace logarítmica, con el fin de predecir las pérdidas de producto sembrado y cosechado en la produccion de aguacate, con base en variables socioeconómicas y agroproductivas tales como:
+ 
+- índice de criminalidad (por cada 100,000 habitantes)
+ 
+- Volumen de producción (en toneladas)
+ 
+- Precio
+ 
+- Valor de producción
+ 
+Obteniendo asi:
+```{r vglm_paretoII}
+min_perdida <- min(na.omit(indice_criminalidad$perdida_siembra_cosecha))
+
+mod_perdida_pareto2 <- vglm(perdida_siembra_cosecha ~ indice_crim + Volumenproduccion,
+                   data = indice_criminalidad,
+                   paretoII(location = min_perdida - 1))
+
+summary(mod_perdida_pareto2)
+
+mean(residuals(mod_perdida_pareto2, type = "working"))
+residuals(mod_perdida_pareto2, type = "deviance")
+```
+  
+
+```{r glm_gamma}
+indice_criminalidad$perdida_siembra_cosecha_2 = replace(indice_criminalidad$perdida_siembra_cosecha, indice_criminalidad$perdida_siembra_cosecha == 0, NA)
+
+mod_perdida_gamma <- glm(
+  formula = perdida_siembra_cosecha_2 ~ indice_crim + Volumenproduccion + Precio + Valorproduccion,
+  family = Gamma(link = "log"),
+  data = indice_criminalidad
+)
+
+summary(mod_perdida_gamma)
+```
+
+
+## 6.2 Pruebas Estadísticas de Comprobación del Modelo
+> **Significancia estadística de los predictores**
+ 
+```{r}
+# Resumen del modelo
+summary(mod_perdida_gamma)
+```
+ 
+Sea el modelo:
+ 
+$$
+\log(\mu_i) = \beta_0 + \beta_1\,\text{índice_crim}_i + \beta_2\,\text{volumenproduccion}_i + \beta_3\,\text{Precio}_i + \beta_4\,\text{Valorproduccion}_i
+$$
+ 
+Las hipótesis a contrastar para cada coeficiente $\beta_j$ son:
+ 
+Para cada predictor \( j = 1, 2, 3, 4 \):
+ 
+$$
+\begin{aligned}
+H_0\!:&\quad \beta_j = 0 \quad \text{(el predictor no tiene efecto)} \\
+H_1\!:&\quad \beta_j \neq 0 \quad \text{(el predictor tiene efecto significativo)}
+\end{aligned}
+$$
+Dado que para todos los predictores considerados en el modelo se obtuvo un \(p-value < 0.05\), se rechaza la hipótesis nula $H_0$ en cada caso, aceptando la existencia de una relación estadísticamente significativa entre los predictores y la respuesta.
+ 
+Por tanto, se confirma con nivel de confianza del 95%, que cada una de las variables incluidas tiene un efecto significativo sobre la media esperada de las pérdidas.
+ 
+```{r}
+# -Gráfica
+# Establece un layout para mostrar 4 gráficos
+par(mfrow = c(2, 2))
+ 
+# Llama a los diagnósticos gráficos
+plot(mod_perdida_gamma)
+ 
+# Volver a la configuración original
+par(mfrow = c(1, 1))
+```
+ 
+ 
+Obteniendo la media y desviación estándar de los residuos:
+ 
+```{r}
+# Media y desviación de residuos
+cat("Media de residuales: ", mean(residuals(mod_perdida_gamma)))
+cat("Vector de desviación de residuales: ", residuals(mod_perdida_gamma, type = "deviance"))
+cat("Desviación de residuales: ", sd(residuals(mod_perdida_gamma)))
+ 
+# Gráfica de los residuos de desviación
+deviance_residuals <- residuals(mod_perdida_gamma, type = "deviance")
+hist(deviance_residuals, main = "Histograma de Residuos de Desviación")
+qqnorm(deviance_residuals, main = "Q-Q Plot de Residuos de Desviación")
+qqline(deviance_residuals)
+```
+ 
+```{r}
+cat("AIC del modelo:", AIC(mod_perdida_gamma), "\n")
+cat("BIC del modelo:", BIC(mod_perdida_gamma), "\n")
+```
+ 
+Al realizar la evaluación comparativa y predictiva del modelo:
+ 
+```{r}
+pred <- predict(mod_perdida_gamma, type = "response")
+obs  <- indice_criminalidad$perdida_siembra_cosecha_2
+ 
+valido <- !is.na(obs)
+pred <- pred[valido]
+obs  <- obs[valido]
+ 
+length(pred)
+length(obs)
+ 
+library(ggplot2)
+ 
+# Creamos un data frame con los valores válidos
+df_plot <- data.frame(
+  Observado = obs,
+  Predicho  = pred
+)
+ 
+ggplot(df_plot, aes(x = Predicho, y = Observado)) +
+  geom_point(color = "darkgreen", size = 2, alpha = 0.7) +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "solid", size = 1) +
+  labs(
+    title = "Predicciones vs Observaciones",
+    x = "Predicho",
+    y = "Observado",
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+ 
+```
+ 
+ 
+#### 6.2.1 Pruebas
+ 
+> **1. Linealidad en parámetros**
+ 
+Este supuesto implica que la relación entre los predictores y la expectativa transformada de la variable de respuesta, mediada por la función de enlace, es lineal. 
+Este suspuesto se comprobará a través de los **gráficos de residuos parciales.**
+ 
+Estos gráficos permiten verificar si la relación entre cada predictor y la variable de respuesta es realmente lineal.
+ 
+```{r}
+crPlots(mod_perdida_gamma)
+ 
+```
+ 
+ 
+Como se puede observar, se realizó un gráfico por cada uno de los predictores: índice de criminalidad, Volumen de producción, precio y valor de producción, respectivamente.
+ 
+Por otro lado, en el eje vertical se observan los residuos parciales (componente + residuo), que muestran el efecto "puro" del predictor sobre la respuesta.
+ 
+La línea rosa hace referencia a la regresión local que indica la tendencia real de los datos, mientras que la línea azul punteada indica la referencia lineal según el modelo.
+ 
+Es claro que la tendencia real de los datos está muy apegada a la referencia lineal con base en el modelo gamma realizado, por lo que se sugiere que existe una relación lineal de los parámetros, y con ello, un buen ajuste en el modelo.
+ 
+ 
+> **2. Independencia**
+ 
+Dicho supuesto establece que la respuesta de cada observación debe ser independiente de las demás. Esta independencia es fundamental para la confiabilidad de la inferencia estadística dentro de los GLM, ya que la dependencia entre observaciones puede comprometer significativamente las conclusiones estadísticas del modelo al conducir a errores estándar subestimados.
+ 
+Para corroborar esto, se sometió a la prueba **Durbin Watson**, la cuál evalúa la autocorrelación en los residuos cuando se tienen datos ordenados temporalmente. 
+En este caso, debido a que los datos están ordenados desde 2003 a 2022, esta prueba es de utilidad.
+ 
+Sean las hipótesis:
+$$
+H_0: \rho = 0 \\ 
+H_1: \rho > 0
+$$
+ 
+ 
+```{r}
+# Durbin Watson para no autocorrelación
+dwtest(mod_perdida_gamma)
+```
+ 
+Debido a que el p-value de la prueba es mayor a 0.05, se puede afirmar con un 95% de confianza que no se rechaza la hipótesis nula $H_0$, es decir, que lo residuos están independientemente distribuidos, o bien, no existe presencia de autocorrelación.
+ 
+ 
+> **3. Multicolinealidad**
+ 
+La multicolinealidad ocurre cuando las variables predictivas están altamente correlacionadas, lo que puede distorsionar la estimación de los coeficientes de regresión
+ 
+Si existe multicolinealidad, se podría indicar la necesidad de implementar métodos de regularización o selección de variables para garantizar la estabilidad del modelo.
+ 
+El **factor de inflación de la varianza (VIF)** es una gran herramienta para detectar la multicolinealidad, ya que ofrece información que va más allá de las simples correlaciones por pares.
+ 
+El VIF funciona cuantificando cuánto se infla la varianza de un coeficiente de regresión debido a las correlaciones entre los predictores. Estas correlaciones dificultan el aislamiento del efecto único de cada predictor sobre la variable objetivo, lo que conduce a estimaciones del modelo menos fiables. (Singh, 2024)
+ 
+ 
+```{r}
+vif(mod_perdida_gamma)
+```
+ 
+ 
+Al tener un valor de VIF para cada uno de los predictores menor a 2, indica que no hay multicolinealidad, es decir, que el predictor no está correlacionado con otros predictores, por lo que no afecta a la estabilidad del modelo.
+ 
+ 
+> **4. Homocedasticidad**
+ 
+Este supuesto considera que la varianza es constante en los diferentes niveles de un factor, es decir, entre diferentes grupos. (Amat, 2016)
+ 
+Para ello, se utilizará la prueba **Breusch-Pagan**, que consiste en ajustar un modelo de regresión lineal con variable respuesta dada por residuales del modelo original al cuadrado y como covariables las variables del modelo original. (Hernández, Usuga & Mazo, 2024)
+ 
+Sean las hipótesis:
+$$
+H_0: \mu = \mu_0 \\
+H_1: \mu \neq \mu_0
+$$
+ 
+```{r}
+bptest(mod_perdida_gamma)
+```
+ 
+Puesto que el p-value estimado es mayor a 0.05, se confirma con un 95% de confianza que no se rechaza la hipótesis nula $H_0$, o bien, que existe homocedasticidad en el modelo.
+
+## 6.3 Generacion Datos Sintéticos
+
+```{r graficas_hist_glm}
+par(mfrow = c(2, 2))
+
+hist(indice_criminalidad$indice_crim, main = "Histograma Indice de Criminalidad", col = "tomato3", xlab = "Indice de Criminalidad")
+hist(indice_criminalidad$Volumenproduccion, main = "Histograma Volumen de Produccion", col = "tomato3", xlab = "Volumen de Produccion")
+hist(indice_criminalidad$Precio,main = "Histograma Precio", col = "tomato3", xlab = "Precio")
+hist(indice_criminalidad$Valorproduccion,  main = "Histograma Valor de Produccion", col = "tomato3", xlab = "Valor Produccion")
+
+par(mfrow = c(1, 1))
+```
+
+
+```{r funcion_gcl}
+# Definir funcion para los números pesudo aleatorios del Generador Congruencial Lineal
+funcion_gcl <- function(s, a, b, d, m){
+  r <- numeric(m)
+  r[1] <- s
+  for (i in 1:(m-1)) {
+    r[i+1] <- (a * r[i] + b) %% d 
+  }
+  # Normalizando valores entre 0 y 1
+  r <- (r+0.5) / d
+  return(r)
+  }
+```
+
+```{r sinteticos_indice}
+# Parametros de la distribucion
+new_datos <- indice_criminalidad$indice_crim[!is.na(indice_criminalidad$indice_crim)]
+fit_gamma_indcrim <-fitdist(new_datos,
+                    distr = "gamma",
+                    method = "mle")
+est_shape_indcrim <- fit_gamma_indcrim$estimate[1]
+est_rate_indcrim <- fit_gamma_indcrim$estimate[2]
+
+cdfcomp(fit_gamma_indcrim)
+
+# Parametros de Generador Congruencial Lineal
+semilla <- 8990
+a <- 567
+b <- 131
+d <- 979
+m <- 250
+
+# Generar valores
+num_aleat <- funcion_gcl(semilla, a, b, d, m)
+
+# Valores
+sintetic_indice_crim <- qgamma(num_aleat, shape = est_shape_indcrim, rate = est_rate_indcrim)
+plot(sintetic_indice_crim, col = "brown3", main = "Datos de Ciminalidad Sintéticos", ylab = "Indice Criminalidad")
+```
+
+```{r sinteticos_volumen}
+# Parametros de la distribucion
+new_datos <- indice_criminalidad$Volumenproduccion[!is.na(indice_criminalidad$Volumenproduccion)]
+fit_lnorm_vol <-fitdist(new_datos + 0.01,
+                    distr = "lnorm",
+                    method = "mle")
+est_mu_vol <- fit_lnorm_vol$estimate[1]
+est_sd_vol <- fit_lnorm_vol$estimate[2]
+
+cdfcomp(fit_lnorm_vol)
+
+# Parametros de Generador Congruencial Lineal
+semilla <- 8990
+a <- 567
+b <- 131
+d <- 979
+m <- 250
+
+
+# Generar valores
+num_aleat <- funcion_gcl(semilla, a, b, d, m)
+
+# Valores
+sintetic_volumen <- qlnorm(num_aleat, meanlog = est_mu_vol, sdlog = est_sd_vol)
+plot(sintetic_volumen, col = "brown3", main = "Datos de Volumen Sintéticos", ylab = "Volumen")
+```
+
+```{r sinteticos_precio}
+# Parametros de la distribucion
+new_datos <- indice_criminalidad$Precio[!is.na(indice_criminalidad$Precio)]
+fit_pareto2_precio <-fitdist(new_datos,
+                    distr = "pareto2",
+                    method = "mge")
+est_shape_precio <- fit_pareto2_precio$estimate[1]
+est_rate_precio <- fit_pareto2_precio$estimate[2]
+
+cdfcomp(fit_pareto2_precio)
+
+# Parametros de Generador Congruencial Lineal
+semilla <- 8990
+a <- 567
+b <- 131
+d <- 979
+m <- 250
+
+
+# Generar valores
+num_aleat <- funcion_gcl(semilla, a, b, d, m)
+
+# Valores
+sintetic_precio <- qpareto2(num_aleat, min = min(num_aleat), shape = est_shape_precio, rate = est_rate_precio)
+plot(sintetic_precio, col = "brown3", main = "Datos de Precio Sintéticos", ylab = "Precio")
+```
+
+```{r sinteticos_valor}
+# Parametros de la distribucion
+new_datos <- indice_criminalidad$Valorproduccion[!is.na(indice_criminalidad$Valorproduccion)]
+fit_lnorm_valor <-fitdist(new_datos + 0.01,
+                    distr = "lnorm",
+                    method = "mle")
+est_mu_valor <- fit_lnorm_valor$estimate[1]
+est_sd_valor <- fit_lnorm_valor$estimate[2]
+
+cdfcomp(fit_lnorm_valor)
+
+# Parametros de Generador Congruencial Lineal
+semilla <- 8990
+a <- 567
+b <- 131
+d <- 979
+m <- 250
+
+
+# Generar valores
+num_aleat <- funcion_gcl(semilla, a, b, d, m)
+
+# Valores
+sintetic_valor <- qlnorm(num_aleat, meanlog = est_mu_valor, sdlog = est_sd_valor)
+plot(sintetic_valor, col = "brown3", main = "Datos de Valor Produccion Sintéticos", ylab = "Valor Produccion")
+```
+
+## 6.4 Validación con Datos Sintéticos
+
+```{r validar_sinteticos}
+# generar data frame
+df_sinteticos <- data.frame(
+  indice_crim = sintetic_indice_crim,
+  Volumenproduccion = sintetic_volumen,
+  Precio = sintetic_precio,
+  Valorproduccion = sintetic_valor
+)
+
+# proyectamos usando el modelo estimado
+df_sinteticos$perdida_proyectada <- predict.glm(mod_perdida_gamma,
+                                                newdata = df_sinteticos,
+                                                type = "response")
+
+head(df_sinteticos, 20)
+```
+```{r}
+#
+ggplot(df_sinteticos, aes(x = perdida_proyectada)) +
+  geom_histogram(aes(y = ..density..), bins = 30, fill = "coral", alpha = 0.7) +
+  geom_density(color = "brown4", size = 1) +
+  labs(title = "Distribución de la Pérdida Proyectada", x = "Pérdida", y = "Densidad") +
+  theme_minimal()
+
+```
+```{r}
+#
+ggplot(df_sinteticos, aes(y = perdida_proyectada)) +
+  geom_boxplot(fill = "coral", color = "brown4") +
+  labs(title = "Boxplot de Pérdida Proyectada", y = "Pérdida Proyectada") +
+  theme_minimal()
+```
+
+
+## 6.5 Simulación Bootsrap
+ 
+A partir del modelo GLM obtenido, se identificaron los estados con mayor riesgo de criminalidad (quellos que se encuentran en el decil superior del índice de criminalidad) y se predijo para ellos la pérdida esperada. Sobre estas predicciones, se aplicó un contrato de reaseguro de exceso de pérdida, considerando una retención de  $10,000 y un límite máximo de cobertura de $600,000. Con esta estructura, se calculó el monto que estaría cubierto por el reasegurador para cada observación.
+ 
+```{r}
+# Seleaccionar estados con alta criminalidad
+umbral_criminalidad <- quantile(indice_criminalidad$indice_crim, 0.90, na.rm = TRUE)
+estados_altacriminalidad <- indice_criminalidad %>%
+  filter(indice_crim >= umbral_criminalidad)
+ 
+```
+ 
+```{r}
+ 
+# Predecir la pérdida con el modelo GLM
+estados_altacriminalidad$predicted_loss <- predict(mod_perdida_gamma, 
+                                                   newdata = estados_altacriminalidad,
+                                                   type = "response")
+```
+ 
+ 
+```{r}
+ 
+# Monto cubierto por el reaseguro
+retencion <- 10000
+limite <- 600000
+ 
+```
+ 
+ 
+Con los valores resultantes del contrato, se aplicó un procedimiento de remuestreo tipo bootstrap con 2,000 iteraciones para estimar el percentil 99.5% (PML) del costo del reasegurador, así como un intervalo de confianza del 95%. El análisis arrojó un PML al 99.5% de $0000, con un intervalo de confianza del 95% entre $39,345.15 y $53,673.50. Esto representa una estimación sólida del posible costo extremo que enfrentaría el reasegurador bajo un escenario adverso en zonas de alta criminalidad.
+ 
+ 
+```{r}
+reaseguro_altos <- pmin(pmax(estados_altacriminalidad$predicted_loss - retencion, 0), limite)
+ 
+# Bootstrap del VaR (percentil 99.5%) del reasegurador
+bootstrap_var <- function(data, n_bootstrap = 2000, percentile = 0.995) {
+  replicate(n_bootstrap, {
+    muestra <- sample(data, replace = TRUE)
+    quantile(muestra, percentile, na.rm = TRUE)
+  })
+}
+ 
+set.seed(12345)
+var_val_reaseg <- bootstrap_var(reaseguro_altos, n_bootstrap = 2000)
+var_est_reaseg <- mean(var_val_reaseg)
+ic_reaseg <- quantile(var_val_reaseg, c(0.025, 0.975))
+ 
+cat("PML 99.5% Reasegurador (alta criminalidad):", format(var_est_reaseg, big.mark = ","), "\n")
+cat("IC 95%: [", format(ic_reaseg[1], big.mark = ","), ",", format(ic_reaseg[2], big.mark = ","), "]\n")
+ 
+```
+ 
+ 
+Obteniendo la siguiente gráfica:
+ 
+```{r}
+# Paso 5: Gráfica de densidad
+#x11()
+plot(density(var_val_reaseg), main = "Bootstrap del PML (Estados con alta criminalidad)",
+     col = "coral", lwd = 2)
+abline(v = var_est_reaseg, col = "brown2", lwd = 2)
+abline(v = ic_reaseg, col = "blue", lty = 2)
+legend("topright",
+       legend = c("Densidad Bootstrap", "PML estimado", "IC 95%"),
+       col = c("coral", "brown2", "blue"),
+       lty = c(1, 1, 2), lwd = c(2, 2, 2),
+       bty = "n")
+ 
+```
+ 
+ 
+Adicionalmente, se evaluó la prima actual del contrato de reaseguro, que se asumió en $60,000. A partir de los datos obtenidos, se estimó un costo esperado para el reasegurador de $25,408.54, lo que implica un Loss Ratio (razón de siniestralidad) promedio de 0.42. El intervalo de confianza del 95% para el Loss Ratio se ubicó entre 0.19 y 0.76, lo cual indica que en la mayoría de los casos, la prima actual resulta suficiente para cubrir el costo del reasegurador, aunque con cierta variabilidad.
+ 
+Bajo el supuesto de que el reasegurador desea alcanzar un Loss Ratio objetivo del 70%, se calculó una prima técnica sugerida de $36,297.92. Esto implica un factor de ajuste recomendado de 0.6, es decir, que la prima actual podría reducirse en aproximadamente un 40% para cumplir con dicho objetivo, sin comprometer la estabilidad del contrato.
+ 
+```{r}
+# Evaluación de la prima de reaseguro
+evaluar_prima_reaseguro <- function(reaseguro, prima, 
+                                    lr_objetivo = 0.7, nivel_confianza = 0.995)
+{
+  # Cálculo de media, LR y VaR
+  costo_esperado <- mean(reaseguro)
+  LR_vec <- reaseguro / prima
+  LR_medio <- mean(LR_vec)
+  ic_LR <- quantile(LR_vec, c(0.025, 0.975), na.rm = TRUE)
+  VaR <- quantile(reaseguro, nivel_confianza, na.rm = TRUE)
+  # Prima sugerida para alcanzar el LR objetivo
+  prima_objetivo <- costo_esperado / lr_objetivo
+  factor_optimo <- prima_objetivo / prima
+  # Salida
+  cat("\n--- Evaluación de la Prima de Reaseguro (Alta Criminalidad) ---\n")
+  cat("Costo esperado del reasegurador:     ", format(costo_esperado, big.mark = ","), "\n")
+  cat("Prima actual del contrato:           ", format(prima, big.mark = ","), "\n")
+  cat("Loss Ratio promedio:                 ", round(LR_medio, 2), "\n")
+  cat("IC 95% del Loss Ratio:               [", round(ic_LR[1], 2), ",", round(ic_LR[2], 2), "]\n")
+  cat("VaR", nivel_confianza * 100, "% del costo del reasegurador:", format(VaR, big.mark = ","), "\n")
+  cat("Prima sugerida para alcanzar LR =", lr_objetivo, ": ", format(prima_objetivo, big.mark = ","), "\n")
+  cat("Factor de ajuste recomendado:        ", round(factor_optimo, 2), "\n")
+}
+ 
+# Supuesto de valor de prima
+evaluar_prima_reaseguro(reaseguro = reaseguro_altos, prima = 60000)
+```
+ 
+ 
+En resumen, el modelo implementado permitió identificar con claridad los riesgos asociados a regiones de alta criminalidad y estimar el impacto financiero para el reasegurador.## 6.5 Bootstrap para Estrés del Modelo
+
+
+# 7. Resultados y discusión
+
+
+# 8. Conclusiones
+
+
+# Referencias
+
+> Bandera F., E., & Pérez P., L. (Enero-Marzo de 2018). LOS MODELOS LINEALES GENERALIZADOS MIXTOS. SU APLICACIÓN EN EL MEJORAMIENTO DE PLANTAS. Obtenido de Ministerio de Educación Superior. Cuba. Instituto Nacional de Ciencias Agricolas: http://scielo.sld.cu/pdf/ctr/v39n1/ctr19118.pdf
+
+> Evans, E., & Ballen, F. (2017). Fortalecimiento de las herramientas de gestión de riesgos para los productores en el sur de la Florida: Entrenamiento de Seguros de Cosechas. Obtenido de Aguacate de la Florida. Manual de Seguro de Cosechas: Seguro%20de%20Cultivos%20Aguacate.pdf
+
+> Gobierno de México. (Septiembre de 2016). Aguacate, el sabor mexicano que conquistó al mundo. Obtenido de Secretaria de Agricultura y Desarrollo Rural: https://www.gob.mx/agricultura/articulos/aguacate-el-sabor-mexicano-que-conquisto-al-mundo
+
+> Le Cour Grandmaison, R., & Frissard Martinez, P. (Enero de 2024). Violento y Próspero. El auge del aguacate en México y su relación con el crimen organizado. Obtenido de Global Initiative Against Transnational Organized Crime: https://globalinitiative.net/wp-content/uploads/2024/01/Romain-Le-Cour-Grandmaison-et-al-Violento-y-pro%CC%81spero-el-auge-del-aguacate-en-Mexico-y-su-relacio%CC%81n-con-el-crimen-organizado-GI-TOC-Enero-de-2024.pdf
+
+> Villarino G., D. (30 de Junio de 2017). Análisis de Riesgo para la Tarificación de Seguros de Automóvil mediante Modelos Lineales Generalizados. Obtenido de Universidad de Cantabria: https://repositorio.unican.es/xmlui/bitstream/handle/10902/12843/VILLARINOSOLARANADAVID.pdf?sequence=1&isAllowed=y
+
+> Singh, V. (18 de noviembre de 2024). Factor de Inflación de la Varianza (VIF): Cómo abordar la multicolinealidad en el análisis de regresión. Obtenido de  DataCamp: https://www.datacamp.com/es/tutorial/variance-inflation-factor
+ 
+> Amat Rodrigom Joaquín (enero de 2016). Análisis de la homogeneidad de varianza (homocedasticidad). Obtenido de RPubs: https://rpubs.com/joaquin_ar/218466
+ 
+> Hernández, F., Usuga, O., & Mazo, M. (12 de agosto de 2024). 12 Pruebas de Homocedasticidad | Modelos de Regresión con R. Github.io. https://fhernanb.github.io/libro_regresion/homo.html
