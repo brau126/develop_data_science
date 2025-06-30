@@ -2,7 +2,7 @@
 title: "Cálculo de Prima de Seguro de Producción de Aguacate usando GLM"
 author: "Canedo B, Braulio y Rueda V, M Rocio"
 date: "2025-03-17"
-output: pdf_document
+output: html_document
 ---
 
 ```{r librerias, include=FALSE}
@@ -99,7 +99,6 @@ El seguro agricola tiene como objetivo minimizar riesgos en la producción, prom
 
 Los resultados que se obtengan de esta propuesta de seguro pueden ser utilizados como base para que el sector asegurador tenga la oportunidad de ofrecer un servicio a favor de la protección de la producción de aguacate, de manera accesible a las capacidades económicas de los agricultores, considerando la relación costo-beneficio para las familias y empresas.
 
-**Para la visualización del código en Github usar la siguiente liga:** https://github.com/brau126/develop_data_science/blob/main/Academic/Re-Sampling/Aguacate_GLM_final.Rmd
 
 # 2. Objetivo
 Calcular la Prima Pura de Riesgo que cubra las pérdidas durante la producción del Aguacate en México, usando datos entre 2003 y 2022.
@@ -108,6 +107,7 @@ Calcular la Prima Pura de Riesgo que cubra las pérdidas durante la producción 
   2. Segmentar los datos por zonas de riesgo, considerando la influencia de operaciones delictivas relacionadas con el narcotráfico.
   3. Realizar un análisis de estrés sobre el cálculo de la Prima Pura de Riesgo mediante simulaciones, con el objetivo de evaluar su sensibilidad ante escenarios adversos.	
 
+> Para la visualización del código en Github usar la siguiente liga: https://github.com/brau126/develop_data_science/blob/main/Academic/Re-Sampling/Aguacate_GLM_final.Rmd
 
 # 3. Literatura (Marco teórico)
 ## 3.1. Contexto histórico
@@ -425,6 +425,12 @@ ggplot(data = tabla_frec_indice_syc, aes(x = intervalo_indice_syc, y = frec_ind_
 ```
 
 ### 4.6.1 Ajuste a Distribución
+Antes de realizar el ajuste de del modelo a una GLM es necesario revisar el comportamiento de las pérdidas, por la naturaleza de los datos de colas pesadas se revisan los índices en ve de valores absolutos y se ajustana a las siguinetes distribuciones:
+- Exponencial
+- Lognormal
+- Gamma
+- Pareto II
+
 ```{r ajuste_lognormal}
 ##  4.7. Ajuste de Distribución
 # ---- AJUSTE LOG-NORMAL ----#
@@ -540,6 +546,8 @@ ks.test(tabla_frec_indice_syc_2,"pgamma", shape=est_shape, rate=est_rate)
 ad.test(pgamma(tabla_frec_indice_syc_2, shape = est_shape , rate = est_rate))
 ```
 
+Tras realizar todos los ajustes y estimaciones se coparán los resultados.
+
 ```{r}
 # Graficar ajustes
 # x11()
@@ -562,10 +570,10 @@ rownames(salida) <- c("Loglik", "AIC", "BIC")
 salida
 ```
 
-
+Siendo así la Pareto II la distribución que mejor se ajusta a las pérdidas. Debido a que el GLM está para la familia Exponencial, entonces se utiliza a función Gamma, pues es lasiguinete con mejor valor de AIC.
 
 ## 4.8 Indice Criminalidad
-
+Tomando en cuenta el enfoque de cobertura al crimen organizado se obtiene un indice de criminalidad para el ajuste del modelo GLM.
 ```{r}
 # Tabla de indice de criminalidad
 indice_criminalidad <- df_deaths %>%
@@ -655,9 +663,6 @@ dummy_cols(indice_criminalidad, select_columns = "estado")
 ```
 
 
-
-
-
 # 5. Metodologia
 La metodologia empleada en este estudio se basa en un enfoque cuantitativo y un diseño de investigación descriptivo. Esto se debe a la utilización de variables concretas, datos numéricos e información estadistica con el propósito de realizar un análisis detallado sobre el cultivo de aguacate en México durante el periodo 2003-2022.  
 
@@ -669,19 +674,15 @@ Para el tratamiento de los datos, se llevó a cabo un proceso de depuración uti
 
 
 # 6. Modelo
-- Reducción de Dimensinalidad
-
-Facilitar el análisis de múltiples factores de crimen organizado que afectan a la producción de los productores de aguacate,tras haber complementado con la información necesaria de estorsiones, derechos de piso, desapariciones, entre otros.
-
-- Segmetación de Datos
-
-Reconocer la influencia que tienen los factores de violencia sobre las pérdidas en la producción, para delimitar zonas de riesgo y ajustar el valor de la prima con valores de sobre cargo dependiendo ubicación de la producción. Dicha clusterización se deja para el sigueinte parcial pues como se comenta en la sección 4.5. hay autores que en estudios previos resaltan que la presencia de desaparición de personas también es un indicador importante de presencia y presión de crimen organizado, entre otros factores, por lo que es necesario complementar la información.
-
 - Modelo Lineal Generalizado
 
 Tomar en cuenta la distribución de las péridas del aguacte se valora la apliación de un GLM basandose ya sea en la distribución exponencial o la gamma. Donde la variable dependiente es la prima pura de riesgo explicada por todos los factores que afectnan las péridas en la producción, ya sean factores propios de la producción como ciclo productivo y sequia o los elementos de violencia subyacentes.
 
-- Análisis de Estrés de la Prima Pura de Riesgo
+- Validación del Modelo con Datos Sintéticos
+
+De igual manera para poder verfificar cómo se adapta el modelo se simularán datos sintéticos con le generador congruencial lineal para ver después de la proyección con el modelo estimado cómo se comportan los datos.
+
+- Análisis de Estrés de la Prima Pura de Riesgo con Bootstrap
 
 Generar escenarios adversos y extremos se somete a estrés la metodologia usada para el cálculo de la PPR y verificando asi la propia capacidad del modelo de adaptarse a casos extremos cubietos por la póliza.
 
@@ -697,20 +698,6 @@ Se ajustó un modelo lineal generalizado (GLM) con distribución Gamma y funció
 - Valor de producción
  
 Obteniendo asi:
-```{r vglm_paretoII}
-min_perdida <- min(na.omit(indice_criminalidad$perdida_siembra_cosecha))
-
-mod_perdida_pareto2 <- vglm(perdida_siembra_cosecha ~ indice_crim + Volumenproduccion,
-                   data = indice_criminalidad,
-                   paretoII(location = min_perdida - 1))
-
-summary(mod_perdida_pareto2)
-
-mean(residuals(mod_perdida_pareto2, type = "working"))
-residuals(mod_perdida_pareto2, type = "deviance")
-```
-  
-
 ```{r glm_gamma}
 indice_criminalidad$perdida_siembra_cosecha_2 = replace(indice_criminalidad$perdida_siembra_cosecha, indice_criminalidad$perdida_siembra_cosecha == 0, NA)
 
@@ -722,7 +709,6 @@ mod_perdida_gamma <- glm(
 
 summary(mod_perdida_gamma)
 ```
-
 
 ## 6.2 Pruebas Estadísticas de Comprobación del Modelo
 > **Significancia estadística de los predictores**
@@ -738,7 +724,7 @@ $$\log(\mu_i) = \beta_0 + \beta_1 \text{indice crim}_i + \beta_2 \text{Volumenpr
  
 Las hipótesis a contrastar para cada coeficiente $\beta_j$ son:
  
-Para cada predictor ( j = 1, 2, 3, 4 ):
+Para cada predictor $\( j = 1, 2, 3, 4 \)$:
  
 $$
 \begin{aligned}
@@ -902,7 +888,7 @@ bptest(mod_perdida_gamma)
 Puesto que el p-value estimado es mayor a 0.05, se confirma con un 95% de confianza que no se rechaza la hipótesis nula $H_0$, o bien, que existe homocedasticidad en el modelo.
 
 ## 6.3 Generacion Datos Sintéticos
-
+Para obtener datos sintéticos y revisar el comportamiento del modelo condatos que aún no conoce se generán datos de acuerdo a las distribuciones las variables que forman parte del modelo. Primero analizando sus valores para revisar a la distribución que se usará para generar los datos.
 ```{r graficas_hist_glm}
 par(mfrow = c(2, 2))
 
@@ -1037,7 +1023,7 @@ plot(sintetic_valor, col = "brown3", main = "Datos de Valor Produccion Sintétic
 ```
 
 ## 6.4 Validación con Datos Sintéticos
-
+Una vez habiendo generado los datos sintéticos se acomodan en un data frame para poder realizar la pyoyección y análisis de los datos. 
 ```{r validar_sinteticos}
 # generar data frame
 df_sinteticos <- data.frame(
@@ -1054,6 +1040,8 @@ df_sinteticos$perdida_proyectada <- predict.glm(mod_perdida_gamma,
 
 head(df_sinteticos, 20)
 ```
+
+Primero se visualiza la densidad de los datos proyectados para poder revisar los mismos.
 ```{r}
 #
 ggplot(df_sinteticos, aes(x = perdida_proyectada)) +
@@ -1063,6 +1051,9 @@ ggplot(df_sinteticos, aes(x = perdida_proyectada)) +
   theme_minimal()
 
 ```
+
+es evidente una desviación hacia valores mayores, contrario a lo que se había revisado antes en todo el análisis descriptivo de los datos. Esto puede explicarse pues al momento de simular los datos quedan dentro de los parámetros seleccionados, sin tomar en cuenta todos los valores atípicos y de las colas pesadas. Por ello puede ser viable hacer el análisis y ajuste del modelo GLM truncando los datos.
+
 ```{r}
 #
 ggplot(df_sinteticos, aes(y = perdida_proyectada)) +
@@ -1071,6 +1062,7 @@ ggplot(df_sinteticos, aes(y = perdida_proyectada)) +
   theme_minimal()
 ```
 
+Tras visualizar la gráfica boxplot de las pérdidas proyectadas de los datos sintéticos se visualizan valores pequeños fuera de los cuartiles, de nuevo contribuyendo a la idea que las colas pesadas de los datos contribuyeron a desviar la información y distribución y disminuyendo la certeza del GLm para datos pequeños.
 
 ## 6.5 Simulación Bootsrap
  
@@ -1183,7 +1175,22 @@ En resumen, el modelo implementado permitió identificar con claridad los riesgo
 
 
 # 7. Resultados y discusión
+Los modelos Lineales Generalizados están basados en utilizar una distribución de la familia exponencial. Cabe aclarar que por el ajuste de distribución de los datos es más conveninete utilizar una Pareto tipo II, basandose en la documentación y publicación de los Vectorized _"Generalized Linear Models"_ se puede realizar esta estimación de modelo basado en la pareto tipo 2.
 
+```{r vglm_paretoII}
+min_perdida <- min(na.omit(indice_criminalidad$perdida_siembra_cosecha))
+
+mod_perdida_pareto2 <- vglm(perdida_siembra_cosecha ~ indice_crim + Volumenproduccion,
+                   data = indice_criminalidad,
+                   paretoII(location = min_perdida - 1))
+
+summary(mod_perdida_pareto2)
+
+mean(residuals(mod_perdida_pareto2, type = "working"))
+residuals(mod_perdida_pareto2, type = "deviance")
+```
+
+Pero tras comenzar el análisis de las pruebas estadísticas se visualizó un sobre ajuste en el modelo, por ello se puede contemplar para futuros estudios realizar el ajuste del modelo usando la metodología K-Fold de validación cruzada. De esta manera aparte de evitar el sobre ajuste, también se contribuye a la generalización del modelo, problema visible al momento de revisar la validación con los datos sintéticos.
 
 # 8. Conclusiones
 
