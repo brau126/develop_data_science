@@ -105,6 +105,7 @@ Calcular la Prima Pura de Riesgo que cubra las pérdidas durante la producción 
   2. Segmentar los datos por zonas de riesgo, considerando la influencia de operaciones delictivas relacionadas con el narcotráfico.
   3. Realizar un análisis de estrés sobre el cálculo de la Prima Pura de Riesgo mediante simulaciones, con el objetivo de evaluar su sensibilidad ante escenarios adversos.	
 
+> Para la visualización del código en Github usar la siguiente liga: https://github.com/brau126/develop_data_science/blob/main/Academic/Re-Sampling/Aguacate_GLM_final.Rmd
 
 # 3. Literatura (Marco teórico)
 ## 3.1. Contexto histórico
