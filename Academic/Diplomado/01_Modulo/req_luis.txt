@@ -1,0 +1,66 @@
+### ---- Ejecución:
+### pip install -r req.txt
+
+# Manipulación de datos
+numpy
+pandas
+geopandas
+
+#Machine-Learning
+scikit-learn
+xgboost
+ 
+
+#Estadística
+scipy
+statsmodels
+varclushi 
+
+#Bases de datos y hojas de calculo
+sqlalchemy
+openpyxl
+xlrd
+pymysql
+
+#Gráficos
+matplotlib
+seaborn
+#keplergl
+pygal
+scikit-plot 
+graphviz
+cairosvg
+cufflinks 
+
+#Interfaz interactiva
+jupyter
+
+#BigData
+pyspark
+findspark
+#joblib
+
+
+#Deep Learning
+#tensorflow
+keras
+pillow
+wordcloud
+spacy
+scikit-image
+
+#Desarrollo Web
+Flask
+requests
+
+#Opcional para jupyter:
+#---- pip install ipykernel
+#---- ipython kernel install --user --name=diplo 
+
+#---- pip install jupyter_contrib_nbextensions
+#---- jupyter nbextensions_configurator enable --user
+#---- jupyter contrib nbextension install --user
+#---- jupyter nbextension enable spellchecker/main
+#---- jupyter nbextension enable codefolding/main
+
+
