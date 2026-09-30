@@ -55,6 +55,7 @@ requests
 
 #Opcional para jupyter:
 #---- pip install ipykernel
+ipykernel
 #---- ipython kernel install --user --name=diplo 
 
 #---- pip install jupyter_contrib_nbextensions
