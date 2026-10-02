@@ -5,6 +5,7 @@
 numpy
 pandas
 geopandas
+dbfread
 
 #Machine-Learning
 scikit-learn

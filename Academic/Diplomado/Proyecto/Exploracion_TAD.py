@@ -5,6 +5,7 @@ import os
 # manipulacion datos
 import pandas as pd
 import numpy as np
+from dbfread import DBF
 
 # graficación
 import matplotlib.pyplot as plt
@@ -40,6 +41,9 @@ def camina_carpetas(ruta_busqueda):
                     frames_[nombre_sin_ext] = pd.read_json(ruta_completa)
                 elif extension in ['.feather', '.ft']:
                     frames_[nombre_sin_ext] = pd.read_feather(ruta_completa)
+                elif extension == '.dbf':
+                    tabla_aux = DBF(ruta_completa)
+                    frames_[nombre_sin_ext] = pd.DataFrame(iter(tabla_aux))
                 else:
                     print(f"⚠️ Formato omitido: {archivo}")
                     continue
@@ -64,10 +68,10 @@ ruta_cred_banxico = ruta_bases + "/banxico_20260906"
 
 frames_banxico = camina_carpetas(ruta_busqueda = ruta_cred_banxico)
 
-nom = list(frames_banxico.keys())
-nom
+nom_banxico = list(frames_banxico.keys())
+nom_banxico
 
-for i in nom:
+for i in nom_banxico:
     n = i.split(sep="_")[1]
     columnas_credito = {'Banco de México': 'fecha',
                         'Unnamed: 1': 'saldo_vigente_'+n}
@@ -99,3 +103,110 @@ nom_condusef
 
 for i in nom_condusef:
     display(i, globals()[i])
+
+ruta_enif_24 = ruta_bases + "/inegi_20260906/enif_2024_csv"
+
+frames_enif_24 = camina_carpetas(ruta_busqueda= ruta_enif_24)
+
+TVIVIENDA_24 = TVIVIENDA
+del TVIVIENDA
+TVIVIENDA_24.sample(n=10, random_state=787)
+
+TSDEM_24 = TSDEM
+del TSDEM
+TSDEM_24.sample(n=10, random_state=787)
+
+TMODULO_24 = TMODULO
+del TMODULO
+TMODULO_24.sample(n=10, random_state=787)
+
+THOGAR_24 = THOGAR
+del THOGAR
+THOGAR_24.sample(n=10, random_state=787)
+
+ruta_enif_21 = ruta_bases + "/inegi_20260906/enif_2021_csv"
+
+frames_enif_21 = camina_carpetas(ruta_busqueda= ruta_enif_21)
+
+TSDEM_21 = TSDEM
+del TSDEM
+TSDEM_21.sample(n=10, random_state=787)
+
+TMODULO_21 = TMODULO
+del TMODULO
+TMODULO_21.sample(n=10, random_state=787)
+
+TVIVIENDA_21 = TVIVIENDA
+del TVIVIENDA
+TVIVIENDA_21.sample(n=10, random_state=787)
+
+THOGAR_21 = THOGAR
+del THOGAR
+THOGAR_21.sample(n=10, random_state=787)
+
+ruta_enif_18 = ruta_bases + "/inegi_20260906/enif_2018_dbf"
+
+frames_enif_18 = camina_carpetas(ruta_busqueda= ruta_enif_18)
+
+TSDEM_18 = tsdem
+del tsdem
+TSDEM_18.sample(n=10, random_state=787)
+
+TMODULO_18 = tmodulo
+del tmodulo
+TMODULO_18.sample(n=10, random_state=787)
+
+TMODULO2_18 = tmodulo2
+del tmodulo2
+TMODULO2_18.sample(n=10, random_state=787)
+
+TVIVIENDA_18 = tvivienda
+del tvivienda
+TVIVIENDA_18.sample(n=10, random_state=787)
+
+ruta_enif_15 = ruta_bases + "/inegi_20260906/enif_2015_dbf"
+
+frames_enif_15 = camina_carpetas(ruta_busqueda= ruta_enif_15)
+
+TSDEM_15 = tsdem
+del tsdem
+TSDEM_15.sample(n=10, random_state=787)
+
+TMODULO1_15 = tmodulo1
+del tmodulo1
+TMODULO1_15.sample(n=10, random_state=787)
+
+TMODULO2_15 = tmodulo2
+del tmodulo2
+TMODULO2_15.sample(n=10, random_state=787)
+
+TMODULO3_15 = tmodulo3
+del tmodulo3
+TMODULO3_15.sample(n=10, random_state=787)
+
+TVIVIENDA_15 = tvivienda
+del tvivienda
+TVIVIENDA_15.sample(n=10, random_state=787)
+
+ruta_enif_12 = ruta_bases + "/inegi_20260906/enif_2012_dbf"
+
+frames_enif_12 = camina_carpetas(ruta_busqueda= ruta_enif_12)
+
+TSDEM_12 = stsdem_e2
+del stsdem_e2
+TSDEM_12.sample(n=10, random_state=787)
+
+TMODULO1_12 = stmodulo1_e2
+del stmodulo1_e2
+TMODULO1_12.sample(n=10, random_state=787)
+
+TMODULO2_12 = stmodulo2_e2
+del stmodulo2_e2
+TMODULO2_12.sample(n=10, random_state=787)
+
+TVIVIENDA_12 = stvivienda_e2
+del stvivienda_e2
+TVIVIENDA_12.sample(n=10, random_state=787)
+
+nom_ = nom_banxico + nom_condusef + nom_cnsf
+nom_
