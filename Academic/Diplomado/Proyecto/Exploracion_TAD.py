@@ -18,6 +18,19 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import seaborn as sns
 
+# estadística
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score,accuracy_score,confusion_matrix
+from sklearn.linear_model import LogisticRegression
+from scipy.stats import ks_2samp
+from sklearn.feature_selection import VarianceThreshold
+from varclushi import VarClusHi
+
+#
+from sklearn.preprocessing import KBinsDiscretizer
+from sklearn.impute import SimpleImputer
+
+
 # ruta con archivos
 ruta_bases = "/home/brauliocb126/Documents/Diplomado/Proyecto/Bases" #cpu
 #ruta_bases = "/home/brauliocbd15/Documents/Diplomado/Proyecto/Bases" #laptop
@@ -1710,6 +1723,68 @@ def variables_correlacionadas(dataframe, columnas_num, umbral):
     return lista_variables
 
 
+def imputar_columnas(df, columnas, estrategia="most_frequent"):
+
+    df = df.copy()
+
+    if isinstance(columnas, str):
+        columnas = [columnas]
+
+    columnas = list(dict.fromkeys(columnas))
+
+    # Comprobar si faltan columnas
+    faltantes = [
+        col for col in columnas
+        if col not in df.columns
+    ]
+
+    if faltantes:
+        raise KeyError(
+            f"Estas columnas no existen: {faltantes}"
+        )
+
+    # Identificar columnas completamente vacías
+    vacias = [
+        col for col in columnas
+        if df[col].isna().all()
+    ]
+
+    # Excluir columnas sin información
+    validas = [
+        col for col in columnas
+        if col not in vacias
+    ]
+
+    if not validas:
+        print("No hay columnas con información para imputar.")
+        return df
+
+    # Preparar imputador
+    im = SimpleImputer(
+        strategy=estrategia,
+        add_indicator=False
+    )
+
+    # Aplicar imputación
+    datos_imputados = im.fit_transform(
+        df[validas]
+    )
+
+    # Reconstruir DataFrame
+    resultado = pd.DataFrame(
+        datos_imputados,
+        columns=validas,
+        index=df.index
+    )
+
+    # Actualizar las columnas
+    df[validas] = resultado
+
+    print(f"Columnas imputadas: {len(validas)}")
+    print(f"Columnas vacías conservadas: {len(vacias)}")
+
+    return df
+
 for c in c_:
     freq(df, c)
 
@@ -1737,40 +1812,56 @@ len(c_) , len(n_)
 
 df[v_].describe(percentiles=np.arange(0,1.01,0.1))
 
-
-df[['v_time_in_hospital','v_num_lab_procedures','v_num_procedures','v_num_medications','v_number_outpatient','v_number_emergency','v_number_inpatient','v_number_diagnoses','v_idx_emergency_cant_meds','v_idx_emergency_cant_diag','v_idx_inpatient_cant_lab_proc','v_idx_inpatient_cant_meds','v_idx_inpatient_cant_diag']].hist(
+df[v_].hist(
     color='#008080',
     grid=False,
-    figsize=(18, 14)
+    figsize=(50, 50)
 )
 
 miss = (1 - df[v_].describe().T[['count']] /len(df)) *100
 
 miss
 
+miss[miss['count']>99]
+
 df[v_] = df[v_].replace([np.inf,-np.inf], np.nan)
 
 df[v_]
 
 # asignamos la función Simple Imputer
-im = SimpleImputer(strategy='median')
+im = SimpleImputer(strategy='mean')
 
 im.fit(df[v_])
 
-df[v_] = im.transform(df[v_])
-
-df[v_].isna().sum()
+df = imputar_columnas(
+    df,
+    v_,
+    estrategia="mean"
+)
 
 df_ks = pd.DataFrame( map( lambda x: ( x , ks_2samp( df[x].dropna() , df[v_][x] ).statistic ) , v_  ) , columns = ['var','ks']   )
 
 # Si el factor ks > 0.1 , la variable esta "rota" ( se alteró la distribución )
 df_ks
 
+# Si el factor ks > 0.1 , la variable esta "rota" ( se alteró la distribución )
+df_ks[df_ks['ks']>0.1]
+
 df[v_].hist(
     color='#008080',
     grid=False,
-    figsize=(18, 14)
+    figsize=(50, 50)
 )
+
+miss = (1 - df[v_].describe().T[['count']] /len(df)) *100
+miss[miss['count']>0.10]
+
+# eliminamos dichas columnas
+miss = df[v_].isna().mean().to_frame(name='count').reset_index()
+dilit_ = miss[miss['count'] > 0.10]['index'].tolist()
+print(dilit_)
+
+v_ = [col for col in v_ if col not in dilit_]
 
 vt = VarianceThreshold(threshold=1.0)
 
@@ -1778,7 +1869,7 @@ vt.fit(df[v_])
 
 sin_varianza = [ v for v, u in zip(v_ , vt.get_support() ) if not(u) ]
 
-sin_varianza
+print(f'{len(sin_varianza)}\n{sin_varianza}')
 
 df[sin_varianza].hist(
     color='#008080',
@@ -1788,7 +1879,7 @@ df[sin_varianza].hist(
 
 v_ = [i for i in v_ if i not in sin_varianza]
 
-v_
+print(f'{len(v_)}\n{v_}')
 
 ext = df[v_].describe( percentiles=[.01,.99] ).T[['1%','99%']].reset_index()
 
