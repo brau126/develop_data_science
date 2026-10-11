@@ -1528,6 +1528,10 @@ print(tabla_clasificacion[tabla_clasificacion['categoria']=='revision'])
 
 print(tabla_clasificacion)
 
+categorias = tabla_clasificacion['categoria'].drop_duplicates()
+
+print(categorias)
+
 variables_por_categoria = {
     categoria: grupo["variable"].tolist()
 
@@ -1535,3 +1539,63 @@ variables_por_categoria = {
         tabla_clasificacion.groupby("categoria")
     )
 }
+
+# cambiamos el nombre de la variable stroke que es la vairable objetivo
+#columna_objetivo = y_[0]
+#df.rename(columns={columna_objetivo : 'y'}, inplace=True)
+df['y'] = df[y_]
+
+#col_unidad_muestral = um_[0]
+#df.rename(columns={col_unidad_muestral : 'um'}, inplace=True
+df['um'] = df['index']
+
+# Unidad Muestral
+um_ = ['um']
+
+# Variable Objetivo
+y_ = ['y']
+
+# Variables eliminadas
+dilit_ = (variables_por_categoria.get("identificador", [])
+    + variables_por_categoria.get("excluida", [])
+    + variables_por_categoria.get("ponderador", [])
+)
+
+# Variables categóricas
+c_ = (
+    variables_por_categoria.get("sexo", [])
+    + variables_por_categoria.get("binaria", [])
+    + variables_por_categoria.get("categorica", [])
+)
+
+# Variables numéricas
+v_ = (
+    variables_por_categoria.get("edad", [])
+    + variables_por_categoria.get("tiempo", [])
+    + variables_por_categoria.get("distancia", [])
+    + variables_por_categoria.get("cantidad", [])
+    + variables_por_categoria.get("continua", [])
+)
+
+
+
+print(f"{df.shape[1]}, {len(dilit_)+len(c_)+len(v_)}")
+
+df = df.drop(columns=dilit_)
+
+# Aplica la conversión a lo largo de las columnas especificadas en la lista v_
+df[v_] = df[v_].apply(pd.to_numeric, errors='coerce').astype('Int64')
+
+df[c_] = df[c_].astype('str')
+
+df.rename(columns={c:'v_'+c for c in v_}, inplace=True)
+df.rename(columns={c:'c_'+c for c in c_}, inplace=True)
+
+df.sample(n=10, random_state=787)
+
+c_ = [c for c in  df.columns.tolist() if c.startswith('c_') ]
+v_ = [c for c in  df.columns.tolist() if c.startswith('v_') ]
+
+c_
+
+v_
