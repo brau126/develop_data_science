@@ -2,6 +2,9 @@
 # sistema
 import os
 
+# herrameintas
+from functools import reduce
+
 # manipulacion datos
 import pandas as pd
 import numpy as np
@@ -81,6 +84,42 @@ for i in nom_banxico:
     mod['fecha'] = pd.to_datetime(mod['fecha'])
     mod['saldo_vigente_'+n] = mod['saldo_vigente_'+n].astype('float64')
     display(i, mod)
+
+# cambiamos el nombre de algunas columnas para no tener repetidos
+globals()['credito_hipotecario_media_residencial'].rename(columns={'saldo_vigente_hipotecario':'saldo_vigente_hipotecario_residencial'}, inplace=True)
+globals()['credito_hipotecario_vivienda_social'].rename(columns={'saldo_vigente_hipotecario':'saldo_vigente_hipotecario_social'}, inplace=True)
+
+globals()['credito_hipotecario_vivienda_social'].columns
+
+globals()['credito_hipotecario_media_residencial'].columns
+
+for i in np.arange(0,len(nom_banxico)-1,1):
+    if i == 0:
+        aux1 = globals()[nom_banxico[i]]
+        aux2 = globals()[nom_banxico[i+1]]
+        df_credito_banxico = pd.merge(left=aux1,
+                                      right=aux2,
+                                      how='outer',
+                                      on='fecha',
+                                      validate='one_to_one'
+                                      )
+    else:
+        aux3 = globals()[nom_banxico[i+1]]
+        df_credito_banxico = pd.merge(left=df_credito_banxico,
+                                      right=aux3,
+                                      how='outer',
+                                      on='fecha',
+                                      validate='one_to_one'
+                                      )
+
+df_credito_banxico.sample(n=10, random_state=787)
+
+df_credito_banxico['saldo_vigente_pf'] = df_credito_banxico['saldo_vigente_personal'] + df_credito_banxico['saldo_vigente_hipotecario_residencial'] + df_credito_banxico['saldo_vigente_nomina'] + df_credito_banxico['saldo_vigente_consumo'] + df_credito_banxico['saldo_vigente_tarjeta'] + df_credito_banxico['saldo_vigente_hipotecario_social']
+
+df_credito_banxico.columns
+
+for i in nom_banxico:
+    del globals()[i]
 
 # información de comision de seguros y fianzas
 ruta_cnsf = ruta_bases + "/cnsf_20260904"
@@ -192,7 +231,7 @@ cols_dup = TMODULO_24.columns.intersection(TSDEM_24.columns).difference(llaves)
 
 enif_2024_t2 = pd.merge(left=TSDEM_24,
                         right=TMODULO_24.drop(columns=cols_dup),
-                        how='left',
+                        how='right',
                         on=llaves
                         )
 
@@ -305,20 +344,27 @@ print(f" - folio: {TVIVIENDA_21.drop_duplicates(subset='folio').shape[0]}")
 print(f" - vivienda: {TVIVIENDA_21.drop_duplicates(subset='numero_vivienda_seleccionada').shape[0]}")
 
 # sdem con modulo
-llaves = ['folio']
+llaves = ['folio',
+          'numero_vivienda_seleccionada',
+          'numero_hogar_vivienda',
+          'numero_renglon_persona_elegida']
+
+TSDEM_21.rename(columns={'numero_renglon_persona':'numero_renglon_persona_elegida'}, inplace=True)
 
 cols_dup = TMODULO_21.columns.intersection(TSDEM_21.columns).difference(llaves)
 
 enif_2021_t2 = pd.merge(left=TSDEM_21,
                         right=TMODULO_21.drop(columns=cols_dup),
-                        how='left',
+                        how='right',
                         on=llaves
                         )
 
 enif_2021_t2
 
 # hogar con sdem-modulo
-llaves = ['folio']
+llaves = ['folio',
+          'numero_vivienda_seleccionada',
+          'numero_hogar_vivienda']
 
 cols_dup = THOGAR_21.columns.intersection(enif_2021_t2.columns).difference(llaves)
 
@@ -331,7 +377,8 @@ enif_2021_t3 = pd.merge(left=enif_2021_t2,
 enif_2021_t3
 
 # vivienda con sdem-modulo-hogar
-llaves = ['folio']
+llaves = ['folio',
+          'numero_vivienda_seleccionada']
 
 cols_dup = TVIVIENDA_21.columns.intersection(enif_2021_t3.columns).difference(llaves)
 
@@ -456,7 +503,7 @@ cols_dup = TSDEM_18.columns.intersection(enif_2018_t2.columns).difference(llaves
 
 enif_2018_t3 = pd.merge(left=TSDEM_18,
                         right=enif_2018_t2.drop(columns=cols_dup),
-                        how='left',
+                        how='right',
                         on=llaves,
                         )
 
@@ -471,7 +518,7 @@ cols_dup = TVIVIENDA_18.columns.intersection(enif_2018_t3.columns).difference(ll
 
 enif_2018_t4 = pd.merge(left=TVIVIENDA_18,
                         right=enif_2018_t3.drop(columns=cols_dup),
-                        how='left',
+                        how='right',
                         on=llaves
                         )
 
@@ -630,7 +677,7 @@ cols_dup = TSDEM_15.columns.intersection(enif_2015_t3.columns).difference(llaves
 
 enif_2015_t4 = pd.merge(left=TSDEM_15,
                         right=enif_2015_t3.drop(columns=cols_dup),
-                        how='left',
+                        how='right',
                         on=llaves,
                         )
 
@@ -765,7 +812,7 @@ cols_dup = TSDEM_12.columns.intersection(enif_2012_t2.columns).difference(llaves
 
 enif_2012_t3 = pd.merge(left=TSDEM_12,
                         right=enif_2012_t2.drop(columns=cols_dup),
-                        how='left',
+                        how='right',
                         on=llaves,
                         )
 
@@ -792,13 +839,442 @@ enif_2012_full.columns
 
 del TMODULO1_12, TMODULO2_12, TSDEM_12, TVIVIENDA_12, enif_2012_t2, enif_2012_t3, enif_2012_t4
 
-# priemro se igualan los nombres de las llaves para que no se pierda el id_unicoidentificador unico
+enif_2012_full.shape, enif_2015_full.shape, enif_2018_full.shape, enif_2021_full.shape, enif_2024_full.shape
 
-nom_banxico
+# primero se igualan los nombres de las llaves para que no se pierda el identificador unico
+#df_enif = pd.concat([enif_2012_full, enif_2015_full, enif_2018_full, enif_2021_full, enif_2024_full], ignore_index=True, axis=0)
+#df_enif.columns.unique(), df_enif.shape[1]
 
-nom_cnsf
+#del enif_2012_full, enif_2015_full, enif_2018_full,enif_2021_full, enif_2024_full
+
+mapeo = pd.read_csv(
+    ruta_bases + "/inegi_20260906/ENIF_mapeo_cantidad_creditos_2012_2024.csv"
+)
+
+# Siete categorías comunes a los cuatro años
+tipos = [
+    "tarjeta_credito_bancaria",
+    "tarjeta_credito_departamental",
+    "credito_nomina",
+    "credito_personal",
+    "credito_automotriz",
+    "credito_vivienda",
+    "credito_grupal"
+]
+
+# Obtener las columnas de cantidad
+columnas_cantidad = {}
+
+for anio in [2012, 2015, 2018, 2021]:
+
+    seleccion = mapeo.loc[
+        (mapeo["anio"] == anio)
+        & (mapeo["tipo_medicion"] == "cantidad")
+        & (mapeo["tipo_producto"].isin(tipos))
+    ]
+
+    columnas_cantidad[anio] = (
+        seleccion.set_index("tipo_producto")
+        .loc[tipos, "snake_case_final"]
+        .tolist()
+    )
+
+columnas_tenencia = {
+    2012: [
+        "credito_tarjeta_credito_banco",
+        "credito_tarjeta_credito_departamental_tienda",
+        "credito_nomina",
+        "credito_personal",
+        "credito_automotriz",
+        "credito_hipotecario",
+        "credito_grupal_comunal_compartamos"
+    ],
+
+    2015: [
+        "tiene_tarjeta_credito_bancaria",
+        "tiene_tarjeta_credito_departamental",
+        "tiene_credito_nomina",
+        "tiene_credito_personal",
+        "tiene_credito_auto",
+        "tiene_credito_hipotecario",
+        "tiene_credito_grupal"
+    ],
+
+    2018: [
+        "tenencia_tarjeta_credito_bancaria_categorias_historicas",
+        "tiene_tarjeta_credito_departamental",
+        "tiene_credito_nomina",
+        "credito_personal",
+        "credito_automotriz",
+        "tiene_credito_vivienda",
+        "tiene_credito_grupal"
+    ],
+
+    2021: [
+        "credito_contratado_internet_aplicacion_prestadero_doopla_tarjeta_banco",
+        "tiene_tarjeta_credito_departamental",
+        "tiene_credito_nomina",
+        "tiene_credito_personal",
+        "tiene_credito_automotriz",
+        "tiene_credito_vivienda",
+        "tiene_credito_grupal"
+    ]
+}
+
+def calcular_productos_credito(df, anio):
+
+    df = df.copy()
+
+    cantidades = columnas_cantidad[anio]
+    tenencias = columnas_tenencia[anio]
+
+    # Comprobar que existan las columnas
+    columnas = cantidades + tenencias
+
+    faltantes = [
+        c for c in columnas
+        if c not in df.columns
+    ]
+
+    if faltantes:
+        raise KeyError(
+            f"ENIF {anio}: faltan columnas: {faltantes}"
+        )
+
+    resultados = pd.DataFrame(index=df.index)
+
+    for tipo, col_cantidad, col_tenencia in zip(
+        tipos, cantidades, tenencias
+    ):
+
+        cantidad = pd.to_numeric(
+            df[col_cantidad],
+            errors="coerce"
+        )
+
+        tenencia = pd.to_numeric(
+            df[col_tenencia],
+            errors="coerce"
+        )
+
+        # Si tiene el producto, utilizar cantidad positiva
+        valor = cantidad.where(
+            tenencia.eq(1) & cantidad.gt(0)
+        )
+
+        # Si declara que NO tiene el producto, asignar cero
+        valor.loc[tenencia.eq(2)] = 0
+
+        resultados[tipo] = valor
+
+    # Sumar solo cuando las siete categorías sean conocidas
+    df["numero_productos_credito"] = (
+        resultados.sum(
+            axis=1,
+            min_count=len(tipos)
+        )
+        .astype("Int64")
+    )
+
+    print(f"ENIF {anio}")
+    print("Observaciones:", len(df))
+    print(
+        "Totales calculados:",
+        df["numero_productos_credito"].notna().sum()
+    )
+    print(
+        "Totales pendientes:",
+        df["numero_productos_credito"].isna().sum()
+    )
+
+    return df
+
+enif_2012_full = calcular_productos_credito(
+    enif_2012_full, 2012
+)
+
+enif_2015_full = calcular_productos_credito(
+    enif_2015_full, 2015
+)
+
+enif_2018_full = calcular_productos_credito(
+    enif_2018_full, 2018
+)
+
+enif_2021_full = calcular_productos_credito(
+    enif_2021_full, 2021
+)
+
+enif_2018_full[
+    "numero_productos_credito"
+].value_counts(dropna=False).sort_index()
+
+bases = {
+    2012: enif_2012_full,
+    2015: enif_2015_full,
+    2018: enif_2018_full,
+    2021: enif_2021_full
+}
+
+resumen = []
+
+for anio, df in bases.items():
+
+    y = df["numero_productos_credito"]
+
+    resumen.append({
+        "anio": anio,
+        "observaciones": len(df),
+        "validos": y.notna().sum(),
+        "sin_creditos": y.eq(0).sum(),
+        "promedio": y.mean(),
+        "mediana": y.median(),
+        "maximo": y.max()
+    })
+
+pd.DataFrame(resumen)
+
+print(enif_2012_full['numero_productos_credito'].describe())
+
+print(enif_2015_full['numero_productos_credito'].describe())
+
+print(enif_2018_full['numero_productos_credito'].describe())
+
+print(enif_2021_full['numero_productos_credito'].describe())
+
+del enif_2024_full
+
+# MacroVariable de variable objetivo
+y_ = ['numero_productos_credito']
+
+print(f'2012\n{enif_2012_full[y_].value_counts()}')
+print(f'2015\n{enif_2015_full[y_].value_counts()}')
+print(f'2018\n{enif_2018_full[y_].value_counts()}')
+print(f'2021\n{enif_2021_full[y_].value_counts()}')
+
+print(f'2012\n{enif_2012_full[y_].isna().sum()}\n')
+print(f'2015\n{enif_2015_full[y_].isna().sum()}\n')
+print(f'2018\n{enif_2018_full[y_].isna().sum()}\n')
+print(f'2021\n{enif_2021_full[y_].isna().sum()}\n')
+
+enif_2012_full[y_] = enif_2012_full[y_].fillna(0)
+enif_2015_full[y_] = enif_2015_full[y_].fillna(0)
+enif_2018_full[y_] = enif_2018_full[y_].fillna(0)
+enif_2021_full[y_] = enif_2021_full[y_].fillna(0)
+
+print(f'2012\n{enif_2012_full[y_].value_counts()}')
+print(f'2015\n{enif_2015_full[y_].value_counts()}')
+print(f'2018\n{enif_2018_full[y_].value_counts()}')
+print(f'2021\n{enif_2021_full[y_].value_counts()}')
+
+# <%-!!-%> Chat GPT aquí vas a realizar los modificaciones con el nuevo snake_case  <%-!!-%> #
+# Todos los mapeos vienen integrados en esta celda; no necesitas cargar un CSV adicional.
+cambios_snake_aprobados = {2012: {'ahorro_cuenta_ahorro': 'tiene_cuenta_ahorro',
+        'credito_abrilde_atraso_pago_credito_automotriz': 'atraso_pago_12m_credito_automotriz',
+        'credito_abrilde_atraso_pago_credito_grupal_comunal_compartamos': 'atraso_pago_12m_credito_grupal',
+        'credito_abrilde_atraso_pago_credito_hipotecario': 'atraso_pago_12m_credito_hipotecario',
+        'credito_abrilde_atraso_pago_credito_nomina': 'atraso_pago_12m_credito_nomina',
+        'credito_abrilde_atraso_pago_credito_personal': 'atraso_pago_12m_credito_personal',
+        'credito_abrilde_atraso_pago_tarjeta_credito_banco': 'atraso_pago_12m_tarjeta_credito_bancaria',
+        'credito_abrilde_atraso_pago_tarjeta_credito_departamental_tienda': 'atraso_pago_12m_tarjeta_credito_departamental',
+        'credito_automotriz': 'tiene_credito_automotriz',
+        'credito_grupal_comunal_compartamos': 'tiene_credito_grupal',
+        'credito_hipotecario': 'tiene_credito_hipotecario',
+        'credito_nomina': 'tiene_credito_nomina',
+        'credito_personal': 'tiene_credito_personal',
+        'credito_tarjeta_credito_banco': 'tiene_tarjeta_credito_bancaria',
+        'credito_tarjeta_credito_departamental_tienda': 'tiene_tarjeta_credito_departamental',
+        'credito_uso_tarjeta_credito_banco_departamental_hacer_compras_establecimientos_comerciales': 'usa_tarjeta_credito_para_compras',
+        'credito_uso_tarjeta_credito_banco_departamental_pagar_gasto_negocio': 'usa_tarjeta_credito_para_gasto_negocio',
+        'credito_uso_tarjeta_credito_banco_departamental_pagar_servicios_agua_luz': 'usa_tarjeta_credito_para_pago_servicios',
+        'cuenta_cheques': 'tiene_cuenta_cheques',
+        'cuenta_sabe_derecho_cambiar_cuenta_nomina_banco_prefiera_gratuita': 'conoce_derecho_portabilidad_nomina',
+        'finanzas_deposito_plazo_fijo': 'tiene_deposito_plazo_fijo',
+        'finanzas_fondo_inversion': 'tiene_fondo_inversion',
+        'numero_credito_automotriz': 'cantidad_creditos_automotrices',
+        'numero_credito_grupal_comunal_compartamos': 'cantidad_creditos_grupales',
+        'numero_credito_hipotecario': 'cantidad_creditos_hipotecarios',
+        'numero_credito_nomina': 'cantidad_creditos_nomina',
+        'numero_credito_personal': 'cantidad_creditos_personales',
+        'numero_cuenta_ahorro': 'cantidad_ahorro',
+        'numero_cuenta_cheques': 'cantidad_cheques',
+        'numero_cuenta_nomina_depositan_sueldo_pension': 'cantidad_cuentas_nomina_pension',
+        'numero_deposito_plazo_fijo': 'cantidad_depositos_plazo_fijo',
+        'numero_fondo_inversion': 'cantidad_fondos_inversion',
+        'numero_otros_creditos': 'cantidad_otros_creditos',
+        'numero_tarjeta_credito_banco': 'cantidad_tarjetas_credito_bancarias',
+        'numero_tarjeta_credito_departamental_tienda_autoservicio': 'cantidad_tarjetas_credito_departamentales',
+        'retiro_cuenta_nomina_depositan_sueldo': 'tiene_cuenta_nomina_o_pension',
+        'retiro_uso_tarjeta_credito_banco_departamental_hacer_retiros_cajeros_automaticos': 'usa_tarjeta_credito_para_retiro_efectivo'},
+ 2015: {'ahorro_cuantas_os_cuenta_ahorro': 'cantidad_ahorro',
+        'ahorro_cuenta_ahorro': 'tiene_cuenta_ahorro',
+        'atrasar_pago_credito_auto': 'atraso_pago_12m_credito_automotriz',
+        'atrasar_pago_credito_bancaria': 'atraso_pago_12m_tarjeta_credito_bancaria',
+        'atrasar_pago_credito_departamental': 'atraso_pago_12m_tarjeta_credito_departamental',
+        'atrasar_pago_credito_grupal': 'atraso_pago_12m_credito_grupal',
+        'atrasar_pago_credito_hipotecario': 'atraso_pago_12m_credito_hipotecario',
+        'atrasar_pago_credito_nomina': 'atraso_pago_12m_credito_nomina',
+        'atrasar_pago_credito_personal': 'atraso_pago_12m_credito_personal',
+        'cantidad_credito_auto': 'cantidad_creditos_automotrices',
+        'cantidad_credito_grupal': 'cantidad_creditos_grupales',
+        'cantidad_credito_hipotecario': 'cantidad_creditos_hipotecarios',
+        'cantidad_credito_nomina': 'cantidad_creditos_nomina',
+        'cantidad_credito_otro_abierto': 'cantidad_otros_creditos',
+        'cantidad_credito_personal': 'cantidad_creditos_personales',
+        'cantidad_tarjeta_credito_bancaria': 'cantidad_tarjetas_credito_bancarias',
+        'cantidad_tarjeta_credito_departamental': 'cantidad_tarjetas_credito_departamentales',
+        'cuenta_cheques': 'tiene_cuenta_cheques',
+        'cuenta_cuantas_os_cuenta_cheques': 'cantidad_cheques',
+        'finanzas_cuantas_os_depositos_plazo_fijo': 'cantidad_depositos_plazo_fijo',
+        'finanzas_cuantas_os_fondos_inversion': 'cantidad_fondos_inversion',
+        'retiro_cuantas_os_cuenta_nomina_pension': 'cantidad_cuentas_nomina_pension',
+        'retiro_cuenta_nomina_pension_depositan': 'tiene_cuenta_nomina_o_pension',
+        'sabe_puede_cambiar_cuenta_tarjeta_nomina_banco_prefiera_forma_gratuita': 'conoce_derecho_portabilidad_nomina',
+        'tiempo_resolucion_queja_judicial': 'tiempo_resolucion_queja_autoridad_judicial',
+        'tiene_credito_auto': 'tiene_credito_automotriz',
+        'tiene_cuenta_deposito_plazo_fijo': 'tiene_deposito_plazo_fijo',
+        'tiene_cuenta_fondo_inversion': 'tiene_fondo_inversion',
+        'usa_tarjeta_credito_compras': 'usa_tarjeta_credito_para_compras',
+        'usa_tarjeta_credito_negocio': 'usa_tarjeta_credito_para_gasto_negocio',
+        'usa_tarjeta_credito_retiro_efectivo': 'usa_tarjeta_credito_para_retiro_efectivo',
+        'usa_tarjeta_credito_servicios': 'usa_tarjeta_credito_para_pago_servicios'},
+ 2018: {'atraso_pago_ultimos_12_meses_credito_automotriz': 'atraso_pago_12m_credito_automotriz',
+        'atraso_pago_ultimos_12_meses_credito_grupal': 'atraso_pago_12m_credito_grupal',
+        'atraso_pago_ultimos_12_meses_credito_nomina': 'atraso_pago_12m_credito_nomina',
+        'atraso_pago_ultimos_12_meses_credito_personal': 'atraso_pago_12m_credito_personal',
+        'atraso_pago_ultimos_12_meses_tarjeta_credito_departamental': 'atraso_pago_12m_tarjeta_credito_departamental',
+        'credito_atraso_pago_credito_vivienda_infonavit_fovissste_banco_otra_institucion': 'atraso_pago_12m_credito_vivienda',
+        'credito_atraso_pago_tarjeta_credito_banco': 'atraso_pago_12m_tarjeta_credito_bancaria',
+        'credito_automotriz': 'tiene_credito_automotriz',
+        'credito_cuantas_tarjetas_credito_bancarias': 'cantidad_tarjetas_credito_bancarias',
+        'credito_cuantas_tarjetas_credito_departamental_tienda_autoservicio': 'cantidad_tarjetas_credito_departamentales',
+        'credito_cuantos_creditos_grupales_comunales_solidarios_compartamos': 'cantidad_creditos_grupales',
+        'credito_cuantos_creditos_vivienda_infonavit_fovissste_banco_otra_institucion': 'cantidad_creditos_vivienda',
+        'credito_personal': 'tiene_credito_personal',
+        'cuenta_cuantas_cuenta_tarjetas_nomina_depositan_sueldo': 'cantidad_cuentas_nomina',
+        'cuenta_cuantas_cuenta_tarjetas_recibir_apoyos_gobierno': 'cantidad_cuentas_apoyos_gobierno',
+        'finanzas_cuantos_depositos_plazo_fijo_puede_retirar_determinadas_fechas': 'cantidad_depositos_plazo_fijo',
+        'finanzas_cuantos_fondos_inversion_acciones_casa_bolsa': 'cantidad_fondos_inversion',
+        'frecuencia_atraso_credito_grupal': 'frecuencia_atraso_12m_credito_grupal',
+        'frecuencia_atraso_credito_nomina': 'frecuencia_atraso_12m_credito_nomina',
+        'frecuencia_atraso_credito_personal': 'frecuencia_atraso_12m_credito_personal',
+        'frecuencia_atraso_credito_vivienda': 'frecuencia_atraso_12m_credito_vivienda',
+        'frecuencia_atraso_otro_credito': 'frecuencia_atraso_12m_credito_automotriz',
+        'frecuencia_atraso_tarjeta_bancaria': 'frecuencia_atraso_12m_tarjeta_credito_bancaria',
+        'frecuencia_atraso_tarjeta_departamental': 'frecuencia_atraso_12m_tarjeta_credito_departamental',
+        'numero_cuantas_cuenta_ahorro': 'cantidad_ahorro',
+        'numero_cuantas_cuenta_cheques': 'cantidad_cheques',
+        'numero_cuantos_creditos_automotrices': 'cantidad_creditos_automotrices',
+        'numero_cuantos_creditos_nomina': 'cantidad_creditos_nomina',
+        'numero_cuantos_creditos_personales': 'cantidad_creditos_personales',
+        'retiro_cuantas_cuenta_tarjetas_pension_depositan_pension': 'cantidad_cuentas_pension',
+        'sabe_puede_cambiar_cuenta_tarjeta_nomina_banco_prefiera_forma_gratuita': 'conoce_derecho_portabilidad_nomina',
+        'tenencia_tarjeta_credito_bancaria_categorias_historicas': 'tiene_tarjeta_credito_bancaria',
+        'tiene_cuenta_deposito_plazo_fijo': 'tiene_deposito_plazo_fijo',
+        'tiene_cuenta_fondo_inversion': 'tiene_fondo_inversion'},
+ 2021: {'ahorro_cuenta_ahorro_tarjeta_debito_tarjeta_plastico_puede_retirar_dinero': 'tarjeta_debito_asociada_ahorro',
+        'atraso_pago_ultimos_12_meses_credito_automotriz': 'atraso_pago_12m_credito_automotriz',
+        'atraso_pago_ultimos_12_meses_credito_grupal': 'atraso_pago_12m_credito_grupal',
+        'atraso_pago_ultimos_12_meses_credito_nomina': 'atraso_pago_12m_credito_nomina',
+        'atraso_pago_ultimos_12_meses_credito_personal': 'atraso_pago_12m_credito_personal',
+        'atraso_pago_ultimos_12_meses_credito_vivienda': 'atraso_pago_12m_credito_vivienda',
+        'atraso_pago_ultimos_12_meses_tarjeta_credito_departamental': 'atraso_pago_12m_tarjeta_credito_departamental',
+        'credito_atraso_pago_credito_automotriz': 'frecuencia_atraso_12m_credito_automotriz',
+        'credito_atraso_pago_credito_grupal_comunal_solidario_compartamos': 'frecuencia_atraso_12m_credito_grupal',
+        'credito_atraso_pago_credito_nomina': 'frecuencia_atraso_12m_credito_nomina',
+        'credito_atraso_pago_tarjeta_credito_banco': 'atraso_pago_12m_tarjeta_credito_bancaria',
+        'credito_contratado_internet_aplicacion_prestadero_doopla_tarjeta_banco': 'tiene_tarjeta_credito_bancaria',
+        'credito_cuantas_os_credito_grupal_comunal_solidario_compartamos': 'cantidad_creditos_grupales',
+        'credito_cuantas_os_credito_vivienda_infonavit_fovissste_banco_otra_institucion': 'cantidad_creditos_vivienda',
+        'credito_cuantas_os_tarjeta_credito_banco': 'cantidad_tarjetas_credito_bancarias',
+        'credito_cuantas_os_tarjeta_credito_departamental_tienda_autoservicio': 'cantidad_tarjetas_credito_departamentales',
+        'cuenta_cheques_tarjeta_debito_tarjeta_plastico_puede_retirar_dinero': 'tarjeta_debito_asociada_cheques',
+        'cuenta_contrato_ultima_cuenta': 'canal_contratacion_ultima_cuenta',
+        'cuenta_cuantas_cuenta_tarjetas_nomina_depositan_sueldo': 'cantidad_cuentas_nomina',
+        'cuenta_cuantas_cuenta_tarjetas_recibir_apoyos_gobierno': 'cantidad_cuentas_apoyos_gobierno',
+        'cuenta_tarjeta_nomina_debito_tarjeta_plastico_puede_retirar_dinero': 'tarjeta_debito_asociada_nomina',
+        'cuenta_tarjeta_recibir_debito_tarjeta_plastico_puede_retirar_dinero': 'tarjeta_debito_asociada_apoyos_gobierno',
+        'finanzas_cuantos_depositos_plazo_fijo_puede_retirar_determinadas_fechas': 'cantidad_depositos_plazo_fijo',
+        'finanzas_cuantos_fondos_inversion_acciones_casa_bolsa': 'cantidad_fondos_inversion',
+        'frecuencia_atraso_credito_personal': 'frecuencia_atraso_12m_credito_personal',
+        'frecuencia_atraso_credito_vivienda': 'frecuencia_atraso_12m_credito_vivienda',
+        'frecuencia_atraso_tarjeta_credito_bancaria': 'frecuencia_atraso_12m_tarjeta_credito_bancaria',
+        'frecuencia_atraso_tarjeta_departamental': 'frecuencia_atraso_12m_tarjeta_credito_departamental',
+        'numero_cuantas_cuenta_ahorro': 'cantidad_ahorro',
+        'numero_cuantas_cuenta_cheques': 'cantidad_cheques',
+        'numero_cuantas_os_credito_automotriz': 'cantidad_creditos_automotrices',
+        'numero_cuantas_os_credito_nomina': 'cantidad_creditos_nomina',
+        'numero_cuantas_os_credito_personal': 'cantidad_creditos_personales',
+        'retiro_cuantas_cuenta_tarjetas_pension_depositan_pension': 'cantidad_cuentas_pension',
+        'retiro_cuenta_tarjeta_pension_debito_tarjeta_plastico_puede_retirar_dinero': 'tarjeta_debito_asociada_pension',
+        'sabe_puede_cambiar_cuenta_tarjeta_nomina_banco_prefiera_forma_gratuita': 'conoce_derecho_portabilidad_nomina',
+        'tiene_cuenta_deposito_plazo_fijo': 'tiene_deposito_plazo_fijo',
+        'tiene_cuenta_fondo_inversion': 'tiene_fondo_inversion'},
+ 2024: {'atraso_pago_ultimos_12_meses_credito_automotriz': 'atraso_pago_12m_credito_automotriz',
+        'atraso_pago_ultimos_12_meses_credito_grupal': 'atraso_pago_12m_credito_grupal',
+        'atraso_pago_ultimos_12_meses_credito_nomina': 'atraso_pago_12m_credito_nomina',
+        'atraso_pago_ultimos_12_meses_credito_personal': 'atraso_pago_12m_credito_personal',
+        'atraso_pago_ultimos_12_meses_credito_vivienda': 'atraso_pago_12m_credito_vivienda',
+        'atraso_pago_ultimos_12_meses_tarjeta_credito_bancaria': 'atraso_pago_12m_tarjeta_credito_bancaria',
+        'atraso_pago_ultimos_12_meses_tarjeta_credito_departamental': 'atraso_pago_12m_tarjeta_credito_departamental',
+        'frecuencia_atraso_pago_ultimos_12_meses_credito_automotriz': 'frecuencia_atraso_12m_credito_automotriz',
+        'frecuencia_atraso_pago_ultimos_12_meses_credito_grupal': 'frecuencia_atraso_12m_credito_grupal',
+        'frecuencia_atraso_pago_ultimos_12_meses_credito_nomina': 'frecuencia_atraso_12m_credito_nomina',
+        'frecuencia_atraso_pago_ultimos_12_meses_credito_personal': 'frecuencia_atraso_12m_credito_personal',
+        'frecuencia_atraso_pago_ultimos_12_meses_credito_vivienda': 'frecuencia_atraso_12m_credito_vivienda',
+        'frecuencia_atraso_pago_ultimos_12_meses_tarjeta_credito_bancaria': 'frecuencia_atraso_12m_tarjeta_credito_bancaria',
+        'frecuencia_atraso_pago_ultimos_12_meses_tarjeta_credito_departamental': 'frecuencia_atraso_12m_tarjeta_credito_departamental',
+        'sabe_puede_cambiar_cuenta_tarjeta_nomina_banco_prefiera_forma_gratuita': 'conoce_derecho_portabilidad_nomina',
+        'tiene_cuenta_deposito_plazo_fijo': 'tiene_deposito_plazo_fijo',
+        'tiene_cuenta_fondo_inversion': 'tiene_fondo_inversion'}}
+
+llaves_enif_protegidas = {
+    'folio', 'numero_control_vivienda', 'upm_identificador',
+    'numero_vivienda_seleccionada', 'numero_hogar_vivienda',
+    'numero_renglon_persona', 'numero_renglon_persona_elegida',
+    'numero_renglon_informante', 'id_vivienda', 'id_hogar', 'id_persona_hogar',
+}
+
+def aplicar_snake_case_aprobado(df, anio):
+    """Renombra columnas presentes, sin cambiar llaves, datos, filas o número de columnas."""
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError(f"ENIF {anio}: se esperaba un DataFrame")
+    if not df.columns.is_unique:
+        raise ValueError(f"ENIF {anio}: hay columnas duplicadas ANTES del renombrado")
+    renombres = cambios_snake_aprobados[anio]
+    cambios_presentes = {viejo: nuevo for viejo, nuevo in renombres.items()
+                         if viejo in df.columns and viejo != nuevo}
+    llaves_afectadas = set(cambios_presentes) & llaves_enif_protegidas
+    if llaves_afectadas:
+        raise ValueError(f"Intento de renombrar llaves protegidas: {llaves_afectadas}")
+    nuevas_columnas = [cambios_presentes.get(c, c) for c in df.columns]
+    if len(nuevas_columnas) != len(set(nuevas_columnas)):
+        repetidas = sorted({c for c in nuevas_columnas if nuevas_columnas.count(c) > 1})
+        raise ValueError(f"ENIF {anio}: el renombrado generaría columnas duplicadas: {repetidas}")
+    resultado = df.rename(columns=cambios_presentes)
+    assert resultado.shape == df.shape, 'Cambiaron las dimensiones del DataFrame'
+    assert all(k in resultado.columns for k in llaves_enif_protegidas if k in df.columns)
+    print(f"ENIF {anio}: {len(cambios_presentes)} columnas renombradas de {len(renombres)} propuestas; "
+          f"{len(df)} registros sin modificación")
+    ausentes = sorted(set(renombres).difference(df.columns))
+    if ausentes:
+        print(f"  Nota: {len(ausentes)} nombres anteriores no están en este DataFrame "
+              '(pueden haberse eliminado como duplicados durante los merges, o estar ya renombrados).')
+    return resultado
+
+# Aplicación a los cuatro DataFrames existentes:
+enif_2012_full = aplicar_snake_case_aprobado(enif_2012_full, 2012)
+enif_2015_full = aplicar_snake_case_aprobado(enif_2015_full, 2015)
+enif_2018_full = aplicar_snake_case_aprobado(enif_2018_full, 2018)
+enif_2021_full = aplicar_snake_case_aprobado(enif_2021_full, 2021)
+
+# ENIF 2024: configuración preparada, pero llamada COMENTADA porque eliminaste enif_2024_full.
+# Cuando vuelvas a cargarlo, elimina solamente el # de la línea siguiente:
+# enif_2024_full = aplicar_snake_case_aprobado(enif_2024_full, 2024)
+
+print('Homologación de nombres terminada: los valores originales se conservan.')
+
 
 nom_condusef
 
-nom_ = nom_banxico + nom_condusef + nom_cnsf + nom_inegi
-nom_
+tabla_calificaciones_producto_financiero_institucion_sector
