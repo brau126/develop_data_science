@@ -1,6 +1,9 @@
-%time
+#%time
 # sistema
 import os
+
+# regular expresions
+import re
 
 # herrameintas
 from functools import reduce
@@ -1257,3 +1260,278 @@ print('Homologación de nombres terminada: los valores originales se conservan.'
 #df = pd.concat([enif_2012_full, enif_2015_full, enif_2018_full, enif_2021_full, enif_2024_full], ignore_index=True, axis=0)
 df = pd.concat([enif_2012_full, enif_2015_full, enif_2018_full, enif_2021_full], ignore_index=True, axis=0)
 print(f'{df.shape}\n {df.columns.unique()}')
+
+del enif_2012_full, enif_2015_full, enif_2018_full, enif_2021_full
+
+# primero se genera la llave única por encuesta y se eliminan las demás variables de identificación de unicidad
+df.sample(n=10, random_state=787)
+
+# se genera llave única con reset_index
+df = df.copy()
+
+df = df.reset_index(drop=False)
+
+# verificamos que sean únicos
+print(f'Valores únicos index: {df['index'].drop_duplicates().shape[0]}\nValores únicos dataframe: {df.shape[0]}')
+
+um_ = ['index']
+
+# identificamos las columnas que solo son llaves y no son informacion real
+print(llaves_enif_protegidas)
+
+todas_ = df.columns.to_list()
+
+def obtener_llaves(obj):
+    """
+    Permite recibir las llaves protegidas como
+    lista, conjunto o diccionario por año.
+    """
+
+    if isinstance(obj, dict):
+        resultado = set()
+
+        for valor in obj.values():
+            resultado.update(obtener_llaves(valor))
+
+        return resultado
+
+    if isinstance(obj, (list, tuple, set, pd.Index)):
+        return set(obj)
+
+    return {obj}
+
+
+excluidas = obtener_llaves(llaves_enif_protegidas)
+
+excluidas.update({
+    "index",
+    "numero_productos_credito"
+})
+
+def contiene(nombre, *palabras):
+
+    return any(
+        re.search(
+            rf"(^|_){re.escape(palabra)}(_|$)",
+            nombre
+        )
+        for palabra in palabras
+    )
+
+def clasificar_variable(nombre):
+
+    nombre = nombre.lower()
+
+    # Variables previamente clasificadas
+    if nombre in excluidas:
+        return "excluida"
+
+    # Identificadores adicionales
+    if (
+        nombre.startswith("id_")
+        or contiene(
+            nombre,
+            "folio",
+            "identificador",
+            "control",
+            "upm",
+            "renglon",
+            "consecutivo",
+            "clave"
+        )
+    ):
+        return "identificador"
+
+    # Sexo
+    if contiene(nombre, "sexo", "genero"):
+        return "sexo"
+
+    # Rangos de edad: son categorías
+    if (
+        "rango_edad" in nombre
+        or "grupo_edad" in nombre
+        or "categoria_edad" in nombre
+    ):
+        return "categorica"
+
+    # Edad en años
+    if contiene(nombre, "edad", "edades"):
+        return "edad"
+
+    # Fechas, diferentes de tiempo transcurrido
+    if contiene(nombre, "fecha"):
+        return "fecha"
+
+    # Variables de ponderación
+    if (
+        "factor_expansion" in nombre
+        or "ponderador" in nombre
+    ):
+        return "ponderador"
+
+    # Tiempo transcurrido
+    if contiene(
+        nombre,
+        "tiempo",
+        "duracion",
+        "minutos",
+        "horas",
+        "dias",
+        "meses",
+        "anios",
+        "anos",
+        "plazo",
+        "antiguedad",
+        "transcurso"
+    ):
+        return "tiempo"
+
+    # Distancias
+    if contiene(
+        nombre,
+        "distancia",
+        "kilometros",
+        "metros",
+        "km"
+    ):
+        return "distancia"
+
+    # Variables cuya semántica no permite
+    # inferir con seguridad una cantidad
+    if nombre == "numero_servicio_internet_fijo":
+        return "revision"
+
+    # Cantidades
+    if (
+        nombre.startswith((
+            "numero_",
+            "num_",
+            "cantidad_",
+            "total_",
+            "cuantos_",
+            "cuantas_"
+        ))
+        or contiene(nombre, "cantidad", "conteo", "cuantos")
+        or "cuantas_viven" in nombre
+    ):
+        return "cantidad"
+
+    # Tener o no tener / Sí o No
+    if nombre.startswith((
+        "tiene_",
+        "tuvo_",
+        "posee_",
+        "dispone_",
+        "cuenta_con_",
+        "es_",
+        "esta_",
+        "utiliza_",
+        "usa_",
+        "conoce_",
+        "sabe_",
+        "recibio_",
+        "solicito_"
+    )):
+        return "binaria"
+
+    # Variables monetarias o continuas
+    if contiene(
+        nombre,
+        "monto",
+        "importe",
+        "ingreso",
+        "gasto",
+        "saldo",
+        "tasa",
+        "porcentaje",
+        "precio",
+        "valor"
+    ):
+        return "continua"
+
+    # Variables categóricas
+    if contiene(
+        nombre,
+        "categoria",
+        "clasificacion",
+        "tipo",
+        "clase",
+        "nivel",
+        "grupo",
+        "estado",
+        "entidad",
+        "municipio",
+        "localidad",
+        "pais",
+        "region",
+        "lugar",
+        "ubicacion",
+        "institucion",
+        "banco",
+        "sector",
+        "ocupacion",
+        "escolaridad",
+        "parentesco",
+        "motivo",
+        "razon",
+        "frecuencia",
+        "estrato",
+        "tamano",
+        "aprobo",
+        "compro",
+        "otro",
+        "anio",
+        "uso",
+        "leccion",
+        "negacion",
+        "favor_digame",
+        "credito_ocupo",
+        "credito_no_",
+        "credito_negaron_",
+        "queja",
+        "_tiene_",
+        "covid",
+        "fuente",
+        "ha_",
+        "reclamado",
+        "emergencia",
+        "urgencia",
+        "atraso",
+        "no_vende_",
+        "pidio_dinero",
+        "no_tiene"
+    ):
+        return "categorica"
+
+    # Cuando el nombre no es suficiente
+    return "revision"
+
+tabla_clasificacion = pd.DataFrame({
+    "variable": todas_
+})
+
+tabla_clasificacion["categoria"] = (
+    tabla_clasificacion["variable"]
+    .apply(clasificar_variable)
+)
+
+print(tabla_clasificacion)
+
+print(tabla_clasificacion[tabla_clasificacion['categoria']=='revision'])
+
+# tabal que se uso para revisar
+#tabla_clasificacion[tabla_clasificacion['categoria']=='revision'].to_excel(ruta_bases+'/tabla_clasficiacion.xlsx', index=False)
+
+tabla_clasificacion['categoria'] = tabla_clasificacion['categoria'].replace('revision','categorica')
+
+print(tabla_clasificacion[tabla_clasificacion['categoria']=='revision'])
+
+print(tabla_clasificacion)
+
+variables_por_categoria = {
+    categoria: grupo["variable"].tolist()
+
+    for categoria, grupo in (
+        tabla_clasificacion.groupby("categoria")
+    )
+}
