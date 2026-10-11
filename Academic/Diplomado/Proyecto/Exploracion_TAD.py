@@ -121,28 +121,6 @@ df_credito_banxico.columns
 for i in nom_banxico:
     del globals()[i]
 
-# información de comision de seguros y fianzas
-ruta_cnsf = ruta_bases + "/cnsf_20260904"
-
-frames_cnsf = camina_carpetas(ruta_busqueda= ruta_cnsf)
-
-nom_cnsf = list(frames_cnsf.keys())
-nom_cnsf
-
-for i in nom_cnsf:
-    display(i, globals()[i])
-
-# información de comision de defensa a usuarios de entidades financieras
-ruta_condusef = ruta_bases + "/condusef_20260906"
-
-frames_condusef = camina_carpetas(ruta_busqueda= ruta_condusef)
-
-nom_condusef = list(frames_condusef.keys())
-nom_condusef
-
-for i in nom_condusef:
-    display(i, globals()[i])
-
 mapeo_enif = ruta_bases + "/inegi_20260906/ENIF_CATALOGO_GLOBAL_NOMBRES_COMPLETOS.xlsx"
 
 mapeo_global = pd.read_excel(mapeo_enif, sheet_name="mapeo_global")
@@ -1275,6 +1253,7 @@ enif_2021_full = aplicar_snake_case_aprobado(enif_2021_full, 2021)
 print('Homologación de nombres terminada: los valores originales se conservan.')
 
 
-nom_condusef
-
-tabla_calificaciones_producto_financiero_institucion_sector
+# primero se igualan los nombres de las llaves para que no se pierda el identificador unico
+#df = pd.concat([enif_2012_full, enif_2015_full, enif_2018_full, enif_2021_full, enif_2024_full], ignore_index=True, axis=0)
+df = pd.concat([enif_2012_full, enif_2015_full, enif_2018_full, enif_2021_full], ignore_index=True, axis=0)
+print(f'{df.shape}\n {df.columns.unique()}')
