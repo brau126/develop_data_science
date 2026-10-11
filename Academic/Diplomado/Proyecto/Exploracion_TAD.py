@@ -163,6 +163,67 @@ THOGAR_24 = TMODULO_24.rename(columns=dic_mapeo_2024_thogar)
 
 THOGAR_24.sample(n=10,random_state=787)
 
+# 2024, identificamos las llaves primarias y foraneas de la tablas deacuerdo a la figura de entidad relación de ENIF 2024
+print(f"TMODULO: {TMODULO_24.shape[0]}")
+print(f" - persona elegida (llavemod): {TMODULO_24.drop_duplicates(subset='id_persona_elegida').shape[0]}")
+print(f" - vivienda: {TMODULO_24.drop_duplicates(subset='id_vivienda').shape[0]}")
+print(f" - hogar: {TMODULO_24.drop_duplicates(subset='id_hogar').shape[0]}")
+
+print(f"TSDEM: {TSDEM_24.shape[0]}")
+print(f" - persona hogar (llavesde): {TSDEM_24.drop_duplicates(subset='id_hogar').shape[0]}")
+print(f" - hogar: {TSDEM_24.drop_duplicates(subset='id_hogar').shape[0]}")
+print(f" - vivienda: {TSDEM_24.drop_duplicates(subset='id_vivienda').shape[0]}")
+
+print(f"THOGAR: {THOGAR_24.shape[0]}")
+print(f" - hogar: {THOGAR_24.drop_duplicates(subset='id_hogar').shape[0]}")
+print(f" - vivienda: {THOGAR_24.drop_duplicates(subset='id_vivienda').shape[0]}")
+
+print(f"TVIVIENDA: {TVIVIENDA_24.shape[0]}")
+print(f" - vivienda: {TVIVIENDA_24.drop_duplicates(subset='id_vivienda').shape[0]}")
+
+# sdem con modulo
+llaves = ['id_hogar']
+
+cols_dup = TMODULO_24.columns.intersection(TSDEM_24.columns).difference(llaves)
+
+enif_2024_t2 = pd.merge(left=TSDEM_24,
+                        right=TMODULO_24.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2024_t2
+
+# hogar con sdem-modulo
+llaves = ['id_hogar']
+
+cols_dup = THOGAR_24.columns.intersection(enif_2024_t2.columns).difference(llaves)
+
+enif_2024_t3 = pd.merge(left=enif_2024_t2,
+                        right=THOGAR_24.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2024_t3
+
+# vivienda con sdem-modulo-hogar
+llaves = ['id_vivienda']
+
+cols_dup = TVIVIENDA_24.columns.intersection(enif_2024_t3.columns).difference(llaves)
+
+enif_2024_t4 = pd.merge(left=enif_2024_t3,
+                        right=TVIVIENDA_24.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2024_t4
+
+enif_2024_full = enif_2024_t4
+
+del TMODULO_24, TSDEM_24, TVIVIENDA_24, THOGAR_24, enif_2024_t2, enif_2024_t3, enif_2024_t4
+
 ruta_enif_21 = ruta_bases + "/inegi_20260906/enif_2021_csv"
 
 frames_enif_21 = camina_carpetas(ruta_busqueda= ruta_enif_21)
@@ -213,6 +274,71 @@ TVIVIENDA_21.sample(n=10,random_state=787)
 THOGAR_21 = TMODULO_21.rename(columns=dic_mapeo_2021_thogar)
 
 THOGAR_21.sample(n=10,random_state=787)
+
+# 2021, identificamos las llaves primarias y foraneas de la tablas deacuerdo a la figura de entidad relación de ENIF 2021
+print(f"TMODULO: {TMODULO_21.shape[0]}")
+print(f" - folio (llavemod): {TMODULO_21.drop_duplicates(subset='folio').shape[0]}")
+print(f" - vivienda: {TMODULO_21.drop_duplicates(subset='numero_vivienda_seleccionada').shape[0]}")
+print(f" - hogar: {TMODULO_21.drop_duplicates(subset='numero_hogar_vivienda').shape[0]}")
+print(f" - renglon persona: {TMODULO_21.drop_duplicates(subset='numero_renglon_persona_elegida').shape[0]}")
+
+print(f"TSDEM: {TSDEM_21.shape[0]}")
+print(f" - folio: {TSDEM_21.drop_duplicates(subset='folio').shape[0]}")
+print(f" - vivienda: {TSDEM_21.drop_duplicates(subset='numero_vivienda_seleccionada').shape[0]}")
+print(f" - hogar: {TSDEM_21.drop_duplicates(subset='numero_hogar_vivienda').shape[0]}")
+print(f" - renglon persona: {TSDEM_21.drop_duplicates(subset='numero_renglon_persona').shape[0]}")
+
+print(f"THOGAR: {THOGAR_21.shape[0]}")
+print(f" - folio: {THOGAR_21.drop_duplicates(subset='folio').shape[0]}")
+print(f" - vivienda: {THOGAR_21.drop_duplicates(subset='numero_vivienda_seleccionada').shape[0]}")
+print(f" - hogar: {THOGAR_21.drop_duplicates(subset='numero_hogar_vivienda').shape[0]}")
+
+print(f"TVIVIENDA: {TVIVIENDA_21.shape[0]}")
+print(f" - folio: {TVIVIENDA_21.drop_duplicates(subset='folio').shape[0]}")
+print(f" - vivienda: {TVIVIENDA_21.drop_duplicates(subset='numero_vivienda_seleccionada').shape[0]}")
+
+# sdem con modulo
+llaves = ['folio']
+
+cols_dup = TMODULO_21.columns.intersection(TSDEM_21.columns).difference(llaves)
+
+enif_2021_t2 = pd.merge(left=TSDEM_21,
+                        right=TMODULO_21.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2021_t2
+
+# hogar con sdem-modulo
+llaves = ['folio']
+
+cols_dup = THOGAR_21.columns.intersection(enif_2021_t2.columns).difference(llaves)
+
+enif_2021_t3 = pd.merge(left=enif_2021_t2,
+                        right=THOGAR_21.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2021_t3
+
+# vivienda con sdem-modulo-hogar
+llaves = ['folio']
+
+cols_dup = TVIVIENDA_21.columns.intersection(enif_2021_t3.columns).difference(llaves)
+
+enif_2021_t4 = pd.merge(left=enif_2021_t3,
+                        right=TVIVIENDA_21.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2021_t4
+
+enif_2021_full = enif_2021_t4
+
+del TMODULO_21, TVIVIENDA_21, THOGAR_21, TSDEM_21, enif_2021_t2, enif_2021_t3, enif_2021_t4
 
 ruta_enif_18 = ruta_bases + "/inegi_20260906/enif_2018_dbf"
 
@@ -266,6 +392,74 @@ TSDEM_18.sample(n=10,random_state=787)
 TVIVIENDA_18 = TVIVIENDA_18.rename(columns=dic_mapeo_2018_tvivienda)
 
 TVIVIENDA_18.sample(n=10,random_state=787)
+
+TVIVIENDA_18.columns#.to_list()
+
+# 2021, identificamos las llaves primarias y foraneas de la tablas deacuerdo a la figura de entidad relación de ENIF 2021
+print(f"TMODULO: {TMODULO_18.shape[0]}")
+print(f" - upm identificador: {TMODULO_18.drop_duplicates(subset='upm_identificador').shape[0]}")
+print(f" - vivienda: {TMODULO_18.drop_duplicates(subset='numero_vivienda_seleccionada').shape[0]}")
+print(f" - hogar: {TMODULO_18.drop_duplicates(subset='numero_hogar_vivienda').shape[0]}")
+print(f" - renglon persona: {TMODULO_18.drop_duplicates(subset='numero_renglon_persona_elegida').shape[0]}")
+#
+print(f"TMODULO2: {TMODULO2_18.shape[0]}")
+print(f" - upm identificador: {TMODULO2_18.drop_duplicates(subset='upm_identificador').shape[0]}")
+print(f" - vivienda: {TMODULO2_18.drop_duplicates(subset='numero_vivienda_seleccionada').shape[0]}")
+print(f" - hogar: {TMODULO2_18.drop_duplicates(subset='numero_hogar_vivienda').shape[0]}")
+print(f" - renglon persona: {TMODULO2_18.drop_duplicates(subset='numero_renglon_persona_elegida').shape[0]}")
+#
+print(f"TSDEM: {TSDEM_18.shape[0]}")
+print(f" - upm identificador: {TSDEM_18.drop_duplicates(subset='upm_identificador').shape[0]}")
+print(f" - vivienda: {TSDEM_18.drop_duplicates(subset='numero_vivienda_seleccionada').shape[0]}")
+print(f" - hogar: {TSDEM_18.drop_duplicates(subset='numero_hogar_vivienda').shape[0]}")
+#
+print(f"TVIVIENDA: {TVIVIENDA_18.shape[0]}")
+print(f" - upm identificador: {TVIVIENDA_18.drop_duplicates(subset='upm_identificador').shape[0]}")
+print(f" - vivienda: {TVIVIENDA_18.drop_duplicates(subset='numero_vivienda_seleccionada').shape[0]}")
+
+# modulo2 con modulo
+llaves = ['upm_identificador']
+
+cols_dup = TMODULO_18.columns.intersection(TMODULO2_18.columns).difference(llaves)
+
+enif_2018_t2 = pd.merge(left=TSDEM_18,
+                        right=TMODULO_18.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2018_t2
+
+# sdem con modulo2-modulo
+llaves = ['upm_identificador']
+
+cols_dup = TSDEM_18.columns.intersection(enif_2018_t2.columns).difference(llaves)
+
+enif_2018_t3 = pd.merge(left=enif_2018_t2,
+                        right=TSDEM_18.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2018_t3
+
+# vivienda con sdem-modulo2-modulo
+llaves = ['upm_identificador']
+
+cols_dup = TVIVIENDA_18.columns.intersection(enif_2018_t3.columns).difference(llaves)
+
+enif_2018_t4 = pd.merge(left=enif_2018_t3,
+                        right=TVIVIENDA_18.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2018_t4
+
+enif_2018_full = enif_2018_t4
+
+# libereacion de memoria
+del TMODULO_18, TMODULO2_18, TSDEM_18, TVIVIENDA_18, enif_2018_t2, enif_2018_t3, enif_2018_t4
 
 ruta_enif_15 = ruta_bases + "/inegi_20260906/enif_2015_dbf"
 
@@ -331,6 +525,67 @@ TVIVIENDA_15 = TVIVIENDA_15.rename(columns=dic_mapeo_2015_tvivienda)
 
 TVIVIENDA_15.sample(n=10,random_state=787)
 
+# 2021, identificamos las llaves primarias y foraneas de la tablas deacuerdo a la figura de entidad relación de ENIF 2021
+print(f"TMODULO: {TMODULO_21.shape[0]}")
+print(f" - persona elegida (llavemod): {TMODULO_21.drop_duplicates(subset='id_persona_elegida').shape[0]}")
+print(f" - vivienda: {TMODULO_21.drop_duplicates(subset='id_vivienda').shape[0]}")
+print(f" - hogar: {TMODULO_21.drop_duplicates(subset='id_hogar').shape[0]}")
+
+print(f"TSDEM: {TSDEM_21.shape[0]}")
+print(f" - persona hogar (llavesde): {TSDEM_21.drop_duplicates(subset='id_hogar').shape[0]}")
+print(f" - hogar: {TSDEM_21.drop_duplicates(subset='id_hogar').shape[0]}")
+print(f" - vivienda: {TSDEM_21.drop_duplicates(subset='id_vivienda').shape[0]}")
+
+print(f"THOGAR: {THOGAR_21.shape[0]}")
+print(f" - hogar: {THOGAR_21.drop_duplicates(subset='id_hogar').shape[0]}")
+print(f" - vivienda: {THOGAR_21.drop_duplicates(subset='id_vivienda').shape[0]}")
+
+print(f"TVIVIENDA: {TVIVIENDA_21.shape[0]}")
+print(f" - vivienda: {TVIVIENDA_21.drop_duplicates(subset='id_vivienda').shape[0]}")
+
+# sdem con modulo
+llaves = ['id_hogar']
+
+cols_dup = TMODULO_24.columns.intersection(TSDEM_24.columns).difference(llaves)
+
+enif_2024_t2 = pd.merge(left=TSDEM_24,
+                        right=TMODULO_24.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2024_t2
+
+# hogar con sdem-modulo
+llaves = ['id_hogar']
+
+cols_dup = THOGAR_24.columns.intersection(enif_2024_t2.columns).difference(llaves)
+
+enif_2024_t3 = pd.merge(left=enif_2024_t2,
+                        right=THOGAR_24.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2024_t3
+
+# vivienda con sdem-modulo-hogar
+llaves = ['id_vivienda']
+
+cols_dup = TVIVIENDA_24.columns.intersection(enif_2024_t3.columns).difference(llaves)
+
+enif_2024_t4 = pd.merge(left=enif_2024_t3,
+                        right=TVIVIENDA_24.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2024_t4
+
+enif_2015_full = enif_2015_t5
+
+del TMODULO1_15, TMODULO2_15, TMODULO3_15, TSDEM_15, TVIVIENDA_15, enif_2015_t2, enif_2015_t3, enif_2015_t4, enif_2015_t5
+
 ruta_enif_12 = ruta_bases + "/inegi_20260906/enif_2012_dbf"
 
 frames_enif_12 = camina_carpetas(ruta_busqueda= ruta_enif_12)
@@ -384,8 +639,64 @@ TVIVIENDA_12 = TVIVIENDA_12.rename(columns=dic_mapeo_2012_tvivienda)
 
 TVIVIENDA_12.sample(n=10,random_state=787)
 
-# 2024, identificamos las llaves primarias y foraneas
+# 2021, identificamos las llaves primarias y foraneas de la tablas deacuerdo a la figura de entidad relación de ENIF 2021
+print(f"TMODULO: {TMODULO_21.shape[0]}")
+print(f" - persona elegida (llavemod): {TMODULO_21.drop_duplicates(subset='id_persona_elegida').shape[0]}")
+print(f" - vivienda: {TMODULO_21.drop_duplicates(subset='id_vivienda').shape[0]}")
+print(f" - hogar: {TMODULO_21.drop_duplicates(subset='id_hogar').shape[0]}")
 
+print(f"TSDEM: {TSDEM_21.shape[0]}")
+print(f" - persona hogar (llavesde): {TSDEM_21.drop_duplicates(subset='id_hogar').shape[0]}")
+print(f" - hogar: {TSDEM_21.drop_duplicates(subset='id_hogar').shape[0]}")
+print(f" - vivienda: {TSDEM_21.drop_duplicates(subset='id_vivienda').shape[0]}")
+
+print(f"THOGAR: {THOGAR_21.shape[0]}")
+print(f" - hogar: {THOGAR_21.drop_duplicates(subset='id_hogar').shape[0]}")
+print(f" - vivienda: {THOGAR_21.drop_duplicates(subset='id_vivienda').shape[0]}")
+
+print(f"TVIVIENDA: {TVIVIENDA_21.shape[0]}")
+print(f" - vivienda: {TVIVIENDA_21.drop_duplicates(subset='id_vivienda').shape[0]}")
+
+# sdem con modulo
+llaves = ['id_hogar']
+
+cols_dup = TMODULO_24.columns.intersection(TSDEM_24.columns).difference(llaves)
+
+enif_2024_t2 = pd.merge(left=TSDEM_24,
+                        right=TMODULO_24.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2024_t2
+
+# hogar con sdem-modulo
+llaves = ['id_hogar']
+
+cols_dup = THOGAR_24.columns.intersection(enif_2024_t2.columns).difference(llaves)
+
+enif_2024_t3 = pd.merge(left=enif_2024_t2,
+                        right=THOGAR_24.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2024_t3
+
+# vivienda con sdem-modulo-hogar
+llaves = ['id_vivienda']
+
+cols_dup = TVIVIENDA_24.columns.intersection(enif_2024_t3.columns).difference(llaves)
+
+enif_2024_t4 = pd.merge(left=enif_2024_t3,
+                        right=TVIVIENDA_24.drop(columns=cols_dup),
+                        how='left',
+                        on=llaves
+                        )
+
+enif_2024_t4
+
+enif_2024_full = enif_2024_t4
 
 nom_ = nom_banxico + nom_condusef + nom_cnsf + nom_inegi
 nom_
