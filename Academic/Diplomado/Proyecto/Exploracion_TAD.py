@@ -1599,3 +1599,350 @@ v_ = [c for c in  df.columns.tolist() if c.startswith('v_') ]
 c_
 
 v_
+
+# distribucion de respuesta
+df[y_].value_counts()
+
+df[y_].value_counts()/len(df)
+
+df['v_cantidad_productos_credito'] = df[y_]
+#v_.append('cantidad_prouctos_credito') # esto es un error porque tendría una variable descriptiva que incluye la respuesta
+
+df[y_] = np.where(df[y_] == 0, 0, 1)
+
+df[y_].value_counts()
+
+def calculo_iv(df , v, tgt, um):
+    #v = 'n_week_day_2'
+    aux = df.pivot_table( index = v , columns=tgt, values=um[0], aggfunc='count', fill_value=0 )
+    aux[ list(range(2)) ] = aux/aux.apply(np.sum)
+    aux['w'] = np.log( aux[0] / aux[1] )      ### AQUÍ ESTÁ LA FORMULA DEL WOE #####
+    aux['iv'] = (aux[0] - aux[1])*aux['w']
+
+    return v, aux['iv'].sum()
+
+def clasificacion_woe(df , v, tgt, um):
+    #v = 'n_week_day_2'
+    aux = df.pivot_table( index = v ,
+                          columns=tgt,
+                         values=um[0],
+                         aggfunc='count',
+                         fill_value=0 )
+
+    aux[ list(range(2)) ] = aux/aux.apply(np.sum)
+
+    aux['w'] = np.log( aux[0] / aux[1] ) ### AQUÍ ESTÁ LA FORMULA DEL WOE #####
+
+    aux.drop(range(2),axis=1,inplace=True)
+
+    aux = aux.to_dict()['w']
+
+    return v, aux
+
+def freq(df, var):
+    if type(var) != list:
+        var = [var]
+    for v in var:
+        #v = 'state'
+        aux = df[v].value_counts().to_frame().rename(columns={'count':'FA'})
+        aux['FR'] = aux['FA'] / aux['FA'].sum()
+        aux[['FAA','FRA']] = aux.apply(  np.cumsum )
+        print(f"La variable: {v}")
+        display(aux)
+        print("\n")
+
+def normalizar(df, v, umbral):
+    # 1. Validar que la columna exista y tenga datos
+    if v not in df.columns or df[v].dropna().empty:
+        print(f"Advertencia: La columna '{v}' está vacía o no existe.")
+        return df
+    
+    # 2. Calcular proporciones
+    aux = df[v].value_counts(normalize=True).to_frame(name='proportion')
+    
+    # 3. Asignar 'CAT_PEQUE' si es menor al umbral, de lo contrario mantener el índice
+    aux[f"n_{v}"] = np.where(aux['proportion'] < umbral, 'CAT_PEQUE', aux.index)
+    
+    # 4. Obtener la moda (la categoría con mayor proporción) de forma segura
+    if not aux.empty:
+        moda = aux.iloc[0][f'n_{v}']
+        
+        # Si la suma de todas las 'CAT_PEQUE' es menor al umbral, reasignarlas a la moda
+        mask_peque = aux[f'n_{v}'] == 'CAT_PEQUE'
+        if aux.loc[mask_peque, 'proportion'].sum() < umbral:
+            aux.loc[mask_peque, f'n_{v}'] = moda
+            
+    # 5. Crear un diccionario de mapeo rápido y seguro (Evita merges que alteren filas)
+    mapeo = pd.Series(aux[f'n_{v}'].values, index=aux.index).to_dict()
+    
+    # 6. Aplicar el mapeo a la columna original o crear la nueva columna n_v
+    df[f'n_{v}'] = df[v].map(mapeo)
+    
+    return df
+
+def discretizar(df_aux, v, k):
+
+    kb = KBinsDiscretizer(n_bins=k, encode='ordinal', strategy='quantile', subsample=None)
+    df_aux = df_aux.copy()
+
+    # Asegurar que no haya valores NaN antes de discretizar
+    df_aux[v] = pd.to_numeric(df_aux[v], errors='coerce')
+    df_aux = df_aux.dropna(subset=[v])
+
+    # Ajustar el discretizador
+    kb.fit(df_aux[[v]])
+
+    # Obtener los intervalos como strings usando pd.cut()
+    bins = kb.bin_edges_[0]  # Extraer los límites de los bins
+    df_aux[f'd_{v}_{k}'] = pd.cut(df_aux[v], bins=bins, include_lowest=True).astype(str)
+
+    return df_aux
+
+def variables_correlacionadas(dataframe, columnas_num, umbral):
+    matriz_corr = dataframe[columnas_num].corr().abs()
+
+    mask = matriz_corr < 1.0
+    
+    columnas_con_alta_corr = matriz_corr[mask].max() > umbral
+    
+    lista_variables = columnas_con_alta_corr[columnas_con_alta_corr].index.tolist()
+    
+    return lista_variables
+
+
+for c in c_:
+    freq(df, c)
+
+k = 0.03 # lo recomendable es un valor entre 0.03 y 0.05
+for c in c_:
+    df = normalizar(df, c, k)    
+
+n_ = [c for c in df.columns if c.startswith('n_')]
+
+len(c_), len(n_)
+
+for c in n_:
+    freq(df, c)
+
+df[n_].sample(n=10, random_state=787315)
+
+unarias = [ v for v, conteo in zip( n_  , [df[v2].unique().shape[0] for v2 in n_ ] ) if conteo == 1 ]
+
+len(unarias) , unarias
+
+# quitamos las variables unarias
+n_ = [ c for c in n_ if c not in unarias ]
+
+len(c_) , len(n_)
+
+df[v_].describe(percentiles=np.arange(0,1.01,0.1))
+
+
+df[['v_time_in_hospital','v_num_lab_procedures','v_num_procedures','v_num_medications','v_number_outpatient','v_number_emergency','v_number_inpatient','v_number_diagnoses','v_idx_emergency_cant_meds','v_idx_emergency_cant_diag','v_idx_inpatient_cant_lab_proc','v_idx_inpatient_cant_meds','v_idx_inpatient_cant_diag']].hist(
+    color='#008080',
+    grid=False,
+    figsize=(18, 14)
+)
+
+miss = (1 - df[v_].describe().T[['count']] /len(df)) *100
+
+miss
+
+df[v_] = df[v_].replace([np.inf,-np.inf], np.nan)
+
+df[v_]
+
+# asignamos la función Simple Imputer
+im = SimpleImputer(strategy='median')
+
+im.fit(df[v_])
+
+df[v_] = im.transform(df[v_])
+
+df[v_].isna().sum()
+
+df_ks = pd.DataFrame( map( lambda x: ( x , ks_2samp( df[x].dropna() , df[v_][x] ).statistic ) , v_  ) , columns = ['var','ks']   )
+
+# Si el factor ks > 0.1 , la variable esta "rota" ( se alteró la distribución )
+df_ks
+
+df[v_].hist(
+    color='#008080',
+    grid=False,
+    figsize=(18, 14)
+)
+
+vt = VarianceThreshold(threshold=1.0)
+
+vt.fit(df[v_])
+
+sin_varianza = [ v for v, u in zip(v_ , vt.get_support() ) if not(u) ]
+
+sin_varianza
+
+df[sin_varianza].hist(
+    color='#008080',
+    grid=False,
+    figsize=(18, 14)
+)
+
+v_ = [i for i in v_ if i not in sin_varianza]
+
+v_
+
+ext = df[v_].describe( percentiles=[.01,.99] ).T[['1%','99%']].reset_index()
+
+for v, li, ls in ext.values:
+    df[f'ol_{v}'] = (( df[v] < li ) | ( df[v] > ls )).astype(int)
+
+df['ext'] = df.filter(like='ol_').max(axis=1)
+
+df.drop(df.filter(like='ol_').columns, axis=1, inplace=True)
+
+df['ext'].value_counts(True)*100
+
+df['ext'].value_counts()
+
+# Selecciono los que NO son extremos o Eliminar extremos
+df = df.loc[df['ext'] == 0].reset_index(drop=True).drop(['ext'],axis=1)
+
+df.shape
+
+df[v_].corr()
+
+corr_df = df[v_].corr()
+plt.figure(figsize=(15,15))
+sns.heatmap( corr_df , annot=True )
+plt.show()
+
+# definimos las varibales e interes para analizar a profundidad
+lst_var_corrs_interes = variables_correlacionadas(df, v_, umbral=0.4)
+
+# siempre graficar esto con una muestra
+sns.pairplot(df[lst_var_corrs_interes].sample(100, random_state=787315),
+             plot_kws={'color': '#008080', 'alpha': 0.6},
+             diag_kws={'color': '#008080', 'fill': True}
+             )
+
+vc = VarClusHi(df=df[v_], feat_list=v_)
+
+vc.varclus()
+
+rs = vc.rsquare
+rs = rs.sort_values( by = ['Cluster','RS_Ratio'] ,ascending=[1,1] ).reset_index(drop=True)
+rs['id'] = rs.groupby('Cluster').cumcount() + 1
+rs
+
+v_ = rs.loc[ rs['id'] == 1  ]['Variable'].tolist()
+
+len(v_), v_
+
+df[v_].hist(
+    color='#008080',
+    grid=False,
+    figsize=(10,10)
+)
+
+
+%%time
+for c in v_:
+    print("Discretizando columna: ",c)
+    for k in range(2,7): ## Los bines se trabajan de manera iterativa aquí van de 2 a 6
+        df = discretizar( df, c , k )
+
+df.sample(n=10, random_state=787)
+
+d_ = df.filter(like='d_').columns.tolist()
+
+d_
+
+Xt, Xv, yt, yv = train_test_split( df[d_+c_+n_+um_], df[um_+y_], train_size=0.7 , random_state=787315)
+
+Xt.shape , yt.shape, Xv.shape, yv.shape
+
+Xt = Xt.merge( yt, on=um_ , how='inner'  ).reset_index(drop=True)
+
+Xt
+
+iv =  pd.DataFrame( map( lambda v: calculo_iv( Xt , v , y_ , um_  ) , d_ ) , columns= ['variable','iv']  )
+
+iv
+
+iv['raiz'] = iv['variable'].map( lambda x: '_'.join( x.split('_')[1:-1] ) )
+
+iv
+
+iv = iv.sort_values( by=['raiz','iv'],ascending=[1,0] ).reset_index(drop=True)
+iv['id'] = iv.groupby( 'raiz' ).cumcount()+1
+
+iv
+
+mejor_d_ = iv.loc[iv.id == 1]['variable'].tolist()
+
+## Estás son mis mejores variables discretizadas para mi WoE. 
+## Tienen el mayor poder predictivo por cada variable raiz. 
+len(mejor_d_) , mejor_d_
+
+df[mejor_d_]
+
+ivd =  pd.DataFrame( map( lambda v: calculo_iv( Xt , v , y_ , um_  ) , n_ ) , columns= ['variable','iv']  )
+
+ivd.sort_values('iv',ascending=False).reset_index(drop=True)
+
+Xt[['y','n_c_gender']].value_counts().reset_index()
+
+Xt[['y','n_c_metformin.pioglitazone']].value_counts().reset_index()
+
+Xt[['y','n_c_glimepiride.pioglitazone']].value_counts().reset_index()
+
+Xt[['y','n_c_acetohexamide']].value_counts().reset_index()
+
+mejor_n_ = ivd[ (ivd['iv'] >= 0.02 ) & (ivd['iv'] < 0.9 ) ]['variable'].tolist()
+
+len(mejor_n_), mejor_n_
+
+mejores_ = mejor_d_ + mejor_n_
+
+len(mejores_),mejores_
+
+df[mejores_].head()
+
+mapa_woe = list( map( lambda v: clasificacion_woe( Xt , v , y_ , um_) , mejores_ ) )
+
+mapa_woe
+
+for v, mapa in mapa_woe:
+    Xt[f'w_{v}'] = Xt[v].replace(mapa)
+    Xv[f'w_{v}'] = Xv[v].replace(mapa)
+
+w_ = Xt.filter(like='w_').columns.tolist()
+
+X = pd.concat([Xt,Xv],ignore_index=True)
+y = pd.concat([yt,yv],ignore_index=True)
+
+X.shape, y.shape
+
+tad = X[um_+w_].merge( y , on = um_ , how='inner').reset_index(drop=True)
+
+tad
+
+tad[y_[0]].value_counts(1)*100
+
+tad.drop(columns=um_+y_).dtypes
+
+to_num = [col for col in tad.columns if col not in (um_ + y_)]
+
+tad[to_num] = tad[to_num].astype('float64')
+
+tad.drop(columns=um_+y_).dtypes
+
+tad.to_parquet('Bases/CANEDO_BELTRAN_BRAULIO_Examen.parquet',
+               engine = 'fastparquet')
+
+tad[to_num].hist(
+    color='#008080',
+    grid=False,
+    figsize=(10,10)
+)
+
+tad
