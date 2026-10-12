@@ -1648,35 +1648,84 @@ def calculo_iv(df, v, tgt, um):
     # Retornamos el nombre de la variable y la suma total del IV
     return [v, aux['iv'].sum()]
 
-def clasificacion_woe(df, v, tgt, um):
-    aux = df.pivot_table(index=v,
-                         columns=tgt,
-                         values=um[0],
-                         aggfunc='count',
-                         fill_value=0)
+def normalizar_categoria(serie):
 
-    # Asegurar que existan ambas columnas [0, 1] por si alguna clase está ausente
-    for col in [0, 1]:
-        if col not in aux.columns:
-            aux[col] = 0
-    aux = aux[[0, 1]]
+    return (
+        serie.astype("string")
+        .str.strip()
+        .replace("", pd.NA)
+        .fillna("__FALTANTE__")
+    )
 
-    # Calcular proporciones
-    aux[[0, 1]] = aux / aux.apply(np.sum)
 
-    # Suavizado (Smoothing) para evitar divisiones por cero y logaritmos de 0 o inf
-    eps = 1e-6
-    aux[0] = aux[0] + eps
-    aux[1] = aux[1] + eps
+def clasificacion_woe(df, v, tgt, um=None, alpha=0.5):
 
-    # Fórmula del WoE protegida contra infinitos
-    aux['w'] = np.log(aux[0] / aux[1]) 
+    # Verificar columnas duplicadas
+    if not df.columns.is_unique:
+        raise ValueError(
+            "Existen nombres de columnas duplicados"
+        )
 
-    # Limpieza de columnas temporales y conversión a diccionario
-    aux.drop([0, 1], axis=1, inplace=True)
-    aux = aux.to_dict()['w']
+    # Variable objetivo
+    y = pd.to_numeric(
+        df[tgt],
+        errors="coerce"
+    )
 
-    return v, aux
+    # WoE requiere clasificación binaria
+    if not y.dropna().isin([0, 1]).all():
+        raise ValueError(
+            "WoE requiere una variable objetivo binaria: 0 y 1"
+        )
+
+    if y.dropna().nunique() != 2:
+        raise ValueError(
+            "La muestra debe contener ambas clases: 0 y 1"
+        )
+
+    # Conservar registros con objetivo conocido
+    validos = y.notna()
+
+    x = normalizar_categoria(
+        df.loc[validos, v]
+    ).reset_index(drop=True)
+
+    y = (
+        y.loc[validos]
+        .astype(int)
+        .reset_index(drop=True)
+    )
+
+    # Contar observaciones por categoría y clase
+    tabla = pd.crosstab(
+        x,
+        y
+    ).reindex(
+        columns=[0, 1],
+        fill_value=0
+    )
+
+    # Número de categorías
+    k = len(tabla)
+
+    # Suavizado de frecuencias
+    p0 = (
+        (tabla[0] + alpha)
+        / (tabla[0].sum() + alpha * k)
+    )
+
+    p1 = (
+        (tabla[1] + alpha)
+        / (tabla[1].sum() + alpha * k)
+    )
+
+    # Calcular WoE
+    woe = np.log(p0 / p1)
+
+    # Convertir a diccionario
+    mapa = woe.astype(float).to_dict()
+
+    return v, mapa
 
 def freq(df, var):
     if type(var) != list:
@@ -2085,26 +2134,56 @@ len(mejores_),mejores_
 
 df[mejores_].head()
 
-mapa_woe = list( map( lambda v: clasificacion_woe( Xt , v , y_ , um_) , mejores_ ) )
+def aplicar_woe(X, mapa_woe):
 
-mapa_woe
+    X = X.copy()
 
-#for v, mapa in mapa_woe:
-#    Xt[f'w_{v}'] = Xt[v].replace(mapa)
-#    Xv[f'w_{v}'] = Xv[v].replace(mapa)
+    # Verificar duplicados
+    duplicadas = X.columns[
+        X.columns.duplicated(keep=False)
+    ].unique().tolist()
 
-Xt = Xt.loc[:, ~Xt.columns.duplicated()]
-Xv = Xv.loc[:, ~Xv.columns.duplicated()]
+    if duplicadas:
+        raise ValueError(
+            f"Existen columnas duplicadas: {duplicadas}"
+        )
 
-for v, mapa in mapa_woe:
-    s_train = Xt[v].iloc[:, 0] if isinstance(Xt[v], pd.DataFrame) else Xt[v]
-    s_val = Xv[v].iloc[:, 0] if isinstance(Xv[v], pd.DataFrame) else Xv[v]
-    
-    # Convertimos a float explícitamente antes de reemplazar con los valores del WoE
-    Xt[f'w_{v}'] = s_train.astype('float64').replace(mapa)
-    Xv[f'w_{v}'] = s_val.astype('float64').replace(mapa)
+    for v, mapa in mapa_woe:
 
-w_ = Xt.filter(like='w_').columns.tolist()
+        if v not in X.columns:
+            raise KeyError(
+                f"La variable {v} no existe"
+            )
+
+        # Normalizar categorías
+        serie = normalizar_categoria(X[v])
+
+        # Aplicar WoE
+        X[f'w_{v}'] = (
+            serie.map(mapa)
+            .fillna(0.0)
+            .astype("float64")
+        )
+
+    return X
+
+Xt = aplicar_woe(Xt, mapa_woe)
+
+Xv = aplicar_woe(Xv, mapa_woe)
+
+w_ = [
+    col for col in Xt.columns
+    if col.startswith("w_")
+]
+
+print(Xt[w_].dtypes.value_counts())
+
+print(
+    "Valores infinitos:",
+    np.isinf(
+        Xt[w_].to_numpy(dtype=float)
+    ).sum()
+)
 
 X = pd.concat([Xt,Xv],ignore_index=True)
 y = pd.concat([yt,yv],ignore_index=True)
@@ -2119,13 +2198,7 @@ tad[y_[0]].value_counts(1)*100
 
 tad.drop(columns=um_+y_).dtypes
 
-to_num = [col for col in tad.columns if col not in (um_ + y_)]
-
-tad[to_num] = tad[to_num].astype('float64')
-
-tad.drop(columns=um_+y_).dtypes
-
-tad.to_parquet('Bases/CANEDO_BELTRAN_BRAULIO_Examen.parquet',
+tad.to_parquet('Bases/CANEDO_BELTRAN_BRAULIO_.parquet',
                engine = 'fastparquet')
 
 tad[to_num].hist(
