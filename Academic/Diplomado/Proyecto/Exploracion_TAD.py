@@ -1601,6 +1601,9 @@ df[v_] = df[v_].apply(pd.to_numeric, errors='coerce').astype('Int64')
 
 df[c_] = df[c_].astype('str')
 
+#for c in df.columns:
+#    print(c, df[c].map(type).unique().tolist() )
+
 df.rename(columns={c:'v_'+c for c in v_}, inplace=True)
 df.rename(columns={c:'c_'+c for c in c_}, inplace=True)
 
@@ -1625,29 +1628,52 @@ df[y_] = np.where(df[y_] == 0, 0, 1)
 
 df[y_].value_counts()
 
-def calculo_iv(df , v, tgt, um):
-    #v = 'n_week_day_2'
-    aux = df.pivot_table( index = v , columns=tgt, values=um[0], aggfunc='count', fill_value=0 )
-    aux[ list(range(2)) ] = aux/aux.apply(np.sum)
-    aux['w'] = np.log( aux[0] / aux[1] )      ### AQUÍ ESTÁ LA FORMULA DEL WOE #####
-    aux['iv'] = (aux[0] - aux[1])*aux['w']
+def calculo_iv(df, v, tgt, um):
+    # 1. Crear la tabla pivote
+    aux = df.pivot_table(index=v, columns=tgt, values=um[0], aggfunc='count', fill_value=0)
+    
+    # 2. Asegurar que existan ambas columnas (0 y 1) en la tabla pivote por si alguna clase está ausente
+    for col in [0, 1]:
+        if col not in aux.columns:
+            aux[col] = 0
+            
+    # Reordenamos las columnas para que siempre sea [0, 1]
+    aux = aux[[0, 1]]
+    
+    # 3. Cálculo de proporciones y WoE/IV
+    aux[[0, 1]] = aux / aux.apply(np.sum)
+    aux['w'] = np.log((aux[0] + 1e-6) / (aux[1] + 1e-6))  # Añadimos un pequeño epsilon por seguridad contra divisiones entre cero
+    aux['iv'] = (aux[0] - aux[1]) * aux['w']
+    
+    # Retornamos el nombre de la variable y la suma total del IV
+    return [v, aux['iv'].sum()]
 
-    return v, aux['iv'].sum()
-
-def clasificacion_woe(df , v, tgt, um):
-    #v = 'n_week_day_2'
-    aux = df.pivot_table( index = v ,
-                          columns=tgt,
+def clasificacion_woe(df, v, tgt, um):
+    aux = df.pivot_table(index=v,
+                         columns=tgt,
                          values=um[0],
                          aggfunc='count',
-                         fill_value=0 )
+                         fill_value=0)
 
-    aux[ list(range(2)) ] = aux/aux.apply(np.sum)
+    # Asegurar que existan ambas columnas [0, 1] por si alguna clase está ausente
+    for col in [0, 1]:
+        if col not in aux.columns:
+            aux[col] = 0
+    aux = aux[[0, 1]]
 
-    aux['w'] = np.log( aux[0] / aux[1] ) ### AQUÍ ESTÁ LA FORMULA DEL WOE #####
+    # Calcular proporciones
+    aux[[0, 1]] = aux / aux.apply(np.sum)
 
-    aux.drop(range(2),axis=1,inplace=True)
+    # Suavizado (Smoothing) para evitar divisiones por cero y logaritmos de 0 o inf
+    eps = 1e-6
+    aux[0] = aux[0] + eps
+    aux[1] = aux[1] + eps
 
+    # Fórmula del WoE protegida contra infinitos
+    aux['w'] = np.log(aux[0] / aux[1]) 
+
+    # Limpieza de columnas temporales y conversión a diccionario
+    aux.drop([0, 1], axis=1, inplace=True)
     aux = aux.to_dict()['w']
 
     return v, aux
@@ -1785,6 +1811,17 @@ def imputar_columnas(df, columnas, estrategia="most_frequent"):
 
     return df
 
+def calculo_iv_df(df, v, tgt, um):
+    aux = df.pivot_table(index=v, columns=tgt, values=um[0], aggfunc='count', fill_value=0)
+    for col in [0, 1]:
+        if col not in aux.columns:
+            aux[col] = 0
+    aux = aux[[0, 1]]
+    aux[[0, 1]] = aux / aux.apply(np.sum)
+    aux['w'] = np.log((aux[0] + 1e-6) / (aux[1] + 1e-6))
+    aux['iv'] = (aux[0] - aux[1]) * aux['w']
+    return {'variable': v, 'iv': aux['iv'].sum()}
+
 for c in c_:
     freq(df, c)
 
@@ -1863,7 +1900,7 @@ print(dilit_)
 
 v_ = [col for col in v_ if col not in dilit_]
 
-vt = VarianceThreshold(threshold=1.0)
+vt = VarianceThreshold(threshold=0.25)
 
 vt.fit(df[v_])
 
@@ -1874,23 +1911,35 @@ print(f'{len(sin_varianza)}\n{sin_varianza}')
 df[sin_varianza].hist(
     color='#008080',
     grid=False,
-    figsize=(18, 14)
+    figsize=(50, 50)
 )
 
 v_ = [i for i in v_ if i not in sin_varianza]
 
 print(f'{len(v_)}\n{v_}')
 
-ext = df[v_].describe( percentiles=[.01,.99] ).T[['1%','99%']].reset_index()
+df[v_].hist(
+    color='#008080',
+    grid=False,
+    figsize=(20, 20)
+)
 
+ext = df[v_].describe(percentiles=[.01, .99]).T[['1%', '99%']].reset_index()
+ext.columns = ['variable', 'li', 'ls']  # Aseguramos nombres limpios para las columnas
+
+outliers_dict = {}
 for v, li, ls in ext.values:
-    df[f'ol_{v}'] = (( df[v] < li ) | ( df[v] > ls )).astype(int)
+    if v in df.columns:
+        outliers_dict[f'ol_{v}'] = ((df[v] < li) | (df[v] > ls)).astype(int)
 
-df['ext'] = df.filter(like='ol_').max(axis=1)
+df_outliers = pd.DataFrame(outliers_dict, index=df.index)
+df = pd.concat([df, df_outliers], axis=1)
 
-df.drop(df.filter(like='ol_').columns, axis=1, inplace=True)
+df['ext'] = df_outliers.max(axis=1)
 
-df['ext'].value_counts(True)*100
+df.drop(df_outliers.columns, axis=1, inplace=True)
+
+df['ext'].value_counts(normalize=True) * 100
 
 df['ext'].value_counts()
 
@@ -1899,10 +1948,30 @@ df = df.loc[df['ext'] == 0].reset_index(drop=True).drop(['ext'],axis=1)
 
 df.shape
 
+#for c in v_:
+#    print(c, df[c].map(type).unique().tolist() )
+
 df[v_].corr()
 
+# habiendo tantos NAN puede ser por errores, por ello mejor se corrobora
+X = df[v_].apply(pd.to_numeric, errors="coerce")
+
+diagnostico = pd.DataFrame({
+    "tipo_dato": df[v_].dtypes.astype(str),
+    "no_nulos": X.notna().sum(),
+    "nulos": X.isna().sum(),
+    "valores_unicos": X.nunique(dropna=True),
+    "desviacion_estandar": X.std()
+})
+
+diagnostico["porcentaje_nulos"] = (
+    diagnostico["nulos"] / len(df) * 100
+).round(2)
+
+display(diagnostico)
+
 corr_df = df[v_].corr()
-plt.figure(figsize=(15,15))
+plt.figure(figsize=(50,50))
 sns.heatmap( corr_df , annot=True )
 plt.show()
 
@@ -1910,7 +1979,7 @@ plt.show()
 lst_var_corrs_interes = variables_correlacionadas(df, v_, umbral=0.4)
 
 # siempre graficar esto con una muestra
-sns.pairplot(df[lst_var_corrs_interes].sample(100, random_state=787315),
+sns.pairplot(df[lst_var_corrs_interes].sample(100, random_state=787),
              plot_kws={'color': '#008080', 'alpha': 0.6},
              diag_kws={'color': '#008080', 'fill': True}
              )
@@ -1924,7 +1993,7 @@ rs = rs.sort_values( by = ['Cluster','RS_Ratio'] ,ascending=[1,1] ).reset_index(
 rs['id'] = rs.groupby('Cluster').cumcount() + 1
 rs
 
-v_ = rs.loc[ rs['id'] == 1  ]['Variable'].tolist()
+v_ = rs.loc[ rs['id'] <= 5 ]['Variable'].tolist()
 
 len(v_), v_
 
@@ -1955,7 +2024,14 @@ Xt = Xt.merge( yt, on=um_ , how='inner'  ).reset_index(drop=True)
 
 Xt
 
-iv =  pd.DataFrame( map( lambda v: calculo_iv( Xt , v , y_ , um_  ) , d_ ) , columns= ['variable','iv']  )
+# Eliminar columnas duplicadas en Xt (conservando la primera ocurrencia)
+Xt = Xt.loc[:, ~Xt.columns.duplicated()]
+
+# Después, vuelve a ejecutar tu cálculo de IV sin problemas:
+iv = pd.DataFrame(
+    map(lambda v: calculo_iv(Xt, v, y_, um_), d_), 
+    columns=['variable', 'iv']
+)
 
 iv
 
@@ -1976,19 +2052,30 @@ len(mejor_d_) , mejor_d_
 
 df[mejor_d_]
 
-ivd =  pd.DataFrame( map( lambda v: calculo_iv( Xt , v , y_ , um_  ) , n_ ) , columns= ['variable','iv']  )
+ivd = pd.DataFrame(list(map(lambda v: calculo_iv_df(df, v, y_, um_), n_)))
 
-ivd.sort_values('iv',ascending=False).reset_index(drop=True)
+ivd = ivd.sort_values('iv', ascending=False).reset_index(drop=True)
 
-Xt[['y','n_c_gender']].value_counts().reset_index()
+ivd.head(10)
 
-Xt[['y','n_c_metformin.pioglitazone']].value_counts().reset_index()
+ivd[ivd['iv']<=0.50]
 
+# esta esta sobre ajustado
+Xt[['y','n_c_tiene_credito_hipotecario']].value_counts().reset_index()
+
+# no sobre ajustado
+Xt[['y','n_c_tiene_algun_seguro']].value_counts().reset_index()
+
+# no sobre ajustado
+Xt[['y','n_c_finanzas_consulta_saldos']].value_counts().reset_index()
+
+# no sobre ajustado
 Xt[['y','n_c_glimepiride.pioglitazone']].value_counts().reset_index()
 
-Xt[['y','n_c_acetohexamide']].value_counts().reset_index()
+# no sobre ajustado
+Xt[['y','n_c_cuenta_tarjeta_debito_cuenta_cheques']].value_counts().reset_index()
 
-mejor_n_ = ivd[ (ivd['iv'] >= 0.02 ) & (ivd['iv'] < 0.9 ) ]['variable'].tolist()
+mejor_n_ = ivd[ (ivd['iv'] >= 0.02 ) & (ivd['iv'] < 0.5 ) ]['variable'].tolist()
 
 len(mejor_n_), mejor_n_
 
@@ -2002,9 +2089,20 @@ mapa_woe = list( map( lambda v: clasificacion_woe( Xt , v , y_ , um_) , mejores_
 
 mapa_woe
 
+#for v, mapa in mapa_woe:
+#    Xt[f'w_{v}'] = Xt[v].replace(mapa)
+#    Xv[f'w_{v}'] = Xv[v].replace(mapa)
+
+Xt = Xt.loc[:, ~Xt.columns.duplicated()]
+Xv = Xv.loc[:, ~Xv.columns.duplicated()]
+
 for v, mapa in mapa_woe:
-    Xt[f'w_{v}'] = Xt[v].replace(mapa)
-    Xv[f'w_{v}'] = Xv[v].replace(mapa)
+    s_train = Xt[v].iloc[:, 0] if isinstance(Xt[v], pd.DataFrame) else Xt[v]
+    s_val = Xv[v].iloc[:, 0] if isinstance(Xv[v], pd.DataFrame) else Xv[v]
+    
+    # Convertimos a float explícitamente antes de reemplazar con los valores del WoE
+    Xt[f'w_{v}'] = s_train.astype('float64').replace(mapa)
+    Xv[f'w_{v}'] = s_val.astype('float64').replace(mapa)
 
 w_ = Xt.filter(like='w_').columns.tolist()
 
