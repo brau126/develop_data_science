@@ -30,6 +30,9 @@ from varclushi import VarClusHi
 from sklearn.preprocessing import KBinsDiscretizer
 from sklearn.impute import SimpleImputer
 
+# parquet
+import fastparquet
+
 
 # ruta con archivos
 ruta_bases = "/home/brauliocb126/Documents/Diplomado/Proyecto/Bases" #cpu
@@ -2119,9 +2122,6 @@ Xt[['y','n_c_tiene_algun_seguro']].value_counts().reset_index()
 Xt[['y','n_c_finanzas_consulta_saldos']].value_counts().reset_index()
 
 # no sobre ajustado
-Xt[['y','n_c_glimepiride.pioglitazone']].value_counts().reset_index()
-
-# no sobre ajustado
 Xt[['y','n_c_cuenta_tarjeta_debito_cuenta_cheques']].value_counts().reset_index()
 
 mejor_n_ = ivd[ (ivd['iv'] >= 0.02 ) & (ivd['iv'] < 0.5 ) ]['variable'].tolist()
@@ -2132,13 +2132,22 @@ mejores_ = mejor_d_ + mejor_n_
 
 len(mejores_),mejores_
 
+#mejores_ = np.unique(mejores_)
+#mejores_
+
 df[mejores_].head()
 
-def aplicar_woe(X, mapa_woe):
+Xt = Xt.loc[:, ~Xt.columns.duplicated()]
+Xv = Xv.loc[:, ~Xv.columns.duplicated()]
 
+# Generamos los diccionarios WoE
+mapa_woe = [clasificacion_woe(Xt, v, y_[0]) for v in mejores_]
+
+def aplicar_woe(X, mapa_woe, mejores_):
     X = X.copy()
+  
+    mejores_set = set(mejores_)
 
-    # Verificar duplicados
     duplicadas = X.columns[
         X.columns.duplicated(keep=False)
     ].unique().tolist()
@@ -2149,16 +2158,17 @@ def aplicar_woe(X, mapa_woe):
         )
 
     for v, mapa in mapa_woe:
+        
+        if v not in mejores_set:
+            continue
 
         if v not in X.columns:
             raise KeyError(
                 f"La variable {v} no existe"
             )
 
-        # Normalizar categorías
         serie = normalizar_categoria(X[v])
 
-        # Aplicar WoE
         X[f'w_{v}'] = (
             serie.map(mapa)
             .fillna(0.0)
@@ -2167,9 +2177,8 @@ def aplicar_woe(X, mapa_woe):
 
     return X
 
-Xt = aplicar_woe(Xt, mapa_woe)
-
-Xv = aplicar_woe(Xv, mapa_woe)
+Xt = aplicar_woe(Xt, mapa_woe, mejores_)
+Xv = aplicar_woe(Xv, mapa_woe, mejores_)
 
 w_ = [
     col for col in Xt.columns
@@ -2198,13 +2207,13 @@ tad[y_[0]].value_counts(1)*100
 
 tad.drop(columns=um_+y_).dtypes
 
-tad.to_parquet('Bases/CANEDO_BELTRAN_BRAULIO_.parquet',
+tad.to_parquet('Bases/CANEDO_BELTRAN_BRAULIO_proyecto.parquet',
                engine = 'fastparquet')
 
-tad[to_num].hist(
+tad.hist(
     color='#008080',
     grid=False,
-    figsize=(10,10)
+    figsize=(100,100)
 )
 
 tad
